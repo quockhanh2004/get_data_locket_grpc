@@ -5,18 +5,15 @@ const path = require("path");
 require("dotenv").config();
 
 const PORT = process.env.PORT || 3000;
-
-// Khởi tạo ứng dụng Express
-const app = express();
-app.use(express.json()); // Middleware để parse JSON body
-
-// Định nghĩa đường dẫn proto
 const PROTO_PATH = path.join(
   __dirname,
   "./google/firestore/v1/firestore.proto"
 );
 
-// Định nghĩa proto
+const app = express();
+app.use(express.json()); // Middleware để parse JSON body
+
+// Load Firestore gRPC Proto
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,
   longs: String,
@@ -25,69 +22,81 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   oneofs: true,
   includeDirs: [path.join(__dirname, "./")],
 });
-
 const firestoreProto =
   grpc.loadPackageDefinition(packageDefinition).google.firestore.v1;
 
-// Khởi tạo kết nối đến Firestore
+// Firestore Client
+const client = new firestoreProto.Firestore(
+  "firestore.googleapis.com:443",
+  grpc.credentials.createSsl()
+);
 
-// Định nghĩa API POST để nhận token và userId
 app.post("/listen", (req, res) => {
   const { token, userId } = req.body;
-
   if (!token || !userId) {
-    return res.status(400).send({ error: "Token and userId are required" });
+    return res.status(400).json({ error: "Token and userId are required" });
   }
-  const client = new firestoreProto.Firestore(
-    "firestore.googleapis.com:443",
-    grpc.credentials.createSsl()
-  );
 
   const metadata = new grpc.Metadata();
   metadata.add("Authorization", `Bearer ${token}`);
+  metadata.add("content-type", "application/grpc");
+  metadata.add(
+    "google-cloud-resource-prefix",
+    "projects/locket-4252a/databases/(default)"
+  );
+  metadata.add("grpc-accept-encoding", "gzip");
+  metadata.add("te", "trailers");
+  metadata.add("user-agent", "grpc-java-okhttp/1.62.2");
 
-  let users = [];
+  console.log(`Starting Listen stream for user ${userId}...`);
   const call = client.Listen(metadata);
 
-  // Thêm timeout để tránh stream chạy vô hạn
-  const TIMEOUT_MS = 60000; // 60 giây
-  const timeout = setTimeout(() => {
-    console.log("Stream timeout. Closing connection...");
-    call.end();
-  }, TIMEOUT_MS);
+  const users = [];
+  let streamEnded = false;
 
   call.on("data", (response) => {
-    if (response.target_change && response.target_change.target_change_type === "NO_CHANGE") {
-      call.end();
+    if (response.target_change) {
+      console.log("Target change event:", response.target_change);
+      if (response.target_change.target_change_type === "NO_CHANGE") {
+        return call.end(); // Ngắt kết nối nếu không có thay đổi
+      }
     }
 
-    if (response.document_change) {
-      const fields = response.document_change.document.fields;
-      if (fields && fields.user && fields.user.string_value) {
-        users.push(fields.user.string_value);
-      }
+    if (response.document_change?.document?.fields?.user?.string_value) {
+      const userString =
+        response.document_change.document.fields.user.string_value;
+      users.push(userString);
+      console.log("Saved user string_value:", userString);
     }
   });
 
   call.on("error", (err) => {
-    console.error("Error:", err);
-    call.end();
-    clearTimeout(timeout);
-    res.status(500).send({ error: "Internal server error" });
+    if (streamEnded) return;
+    console.error("gRPC Stream Error:", err);
+    res.status(500).json({ error: "Internal server error" });
   });
 
   call.on("end", () => {
-    clearTimeout(timeout);
-    console.log("Stream ended for user:", userId);
+    if (streamEnded) return;
+    console.log(`Stream ended for user: ${userId}`);
     res.status(200).json({ users });
+    streamEnded = true;
   });
 
-  // Sử dụng target_id cố định thay vì ngẫu nhiên
-  const targetId = userId.hashCode() % 10000;
+  // Timeout để tránh stream chạy vô hạn
+  const TIMEOUT_MS = 60000;
+  const timeout = setTimeout(() => {
+    if (!streamEnded) {
+      console.log("Stream timeout. Closing connection...");
+      call.end();
+    }
+  }, TIMEOUT_MS);
+
+  // Gửi yêu cầu Listen
   const request = {
     database: "projects/locket-4252a/databases/(default)",
     add_target: {
-      target_id: targetId,
+      target_id: Math.floor(Math.random() * 10000),
       query: {
         parent: `projects/locket-4252a/databases/(default)/documents/users/${userId}`,
         structured_query: {
@@ -103,7 +112,7 @@ app.post("/listen", (req, res) => {
   call.write(request);
 });
 
-// Lắng nghe kết nối trên cổng đã cấu hình
+// Khởi động server
 app.listen(PORT, () => {
-  console.log(`Server listening at http://localhost:${PORT}`);
+  console.log(`Server running at http://localhost:${PORT}`);
 });
