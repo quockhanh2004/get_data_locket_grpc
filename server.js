@@ -56,7 +56,6 @@ app.post("/listen", (req, res) => {
 
   call.on("data", (response) => {
     if (response.target_change) {
-      console.log("Target change event:", response.target_change);
       if (response.target_change.target_change_type === "NO_CHANGE") {
         return call.end(); // Ngắt kết nối nếu không có thay đổi
       }
@@ -66,7 +65,6 @@ app.post("/listen", (req, res) => {
       const userString =
         response.document_change.document.fields.user.string_value;
       users.push(userString);
-      console.log("Saved user string_value:", userString);
     }
   });
 
