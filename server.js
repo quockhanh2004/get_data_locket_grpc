@@ -43,79 +43,64 @@ app.post("/listen", (req, res) => {
     return res.status(400).send({ error: "Token and userId are required" });
   }
 
-  // Khởi tạo metadata với token nhận được từ request
   const metadata = new grpc.Metadata();
   metadata.add("Authorization", `Bearer ${token}`);
-  metadata.add("content-type", "application/grpc");
-  metadata.add(
-    "google-cloud-resource-prefix",
-    "projects/locket-4252a/databases/(default)"
-  );
-  metadata.add("grpc-accept-encoding", "gzip");
-  metadata.add("te", "trailers");
-  metadata.add("user-agent", "grpc-java-okhttp/1.62.2");
 
-  let users = []; // Mỗi request có một mảng riêng
+  let users = [];
+  const call = client.Listen(metadata);
 
-  try {
-    const call = client.Listen(metadata);
+  // Thêm timeout để tránh stream chạy vô hạn
+  const TIMEOUT_MS = 60000; // 60 giây
+  const timeout = setTimeout(() => {
+    console.log("Stream timeout. Closing connection...");
+    call.end();
+  }, TIMEOUT_MS);
 
-    call.on("data", (response) => {
-      if (response.target_change) {
-        console.log("Target change event received:", response.target_change);
-        if (response.target_change.target_change_type === "NO_CHANGE") {
-          call.end(); // Ngắt kết nối khi không có thay đổi
-        }
+  call.on("data", (response) => {
+    if (response.target_change && response.target_change.target_change_type === "NO_CHANGE") {
+      call.end();
+    }
+
+    if (response.document_change) {
+      const fields = response.document_change.document.fields;
+      if (fields && fields.user && fields.user.string_value) {
+        users.push(fields.user.string_value);
       }
+    }
+  });
 
-      if (response.document_change) {
-        // Lấy danh sách trường từ document_change
-        const fields = response.document_change.document.fields;
+  call.on("error", (err) => {
+    console.error("Error:", err);
+    call.end();
+    clearTimeout(timeout);
+    res.status(500).send({ error: "Internal server error" });
+  });
 
-        // Kiểm tra xem có key "user" không
-        if (fields && fields.user && fields.user.string_value) {
-          users.push(fields.user.string_value);
-          console.log("Saved user string_value:", fields.user.string_value);
-        }
-      }
-    });
+  call.on("end", () => {
+    clearTimeout(timeout);
+    console.log("Stream ended for user:", userId);
+    res.status(200).json({ users });
+  });
 
-    call.on("error", (err) => {
-      console.error("Error:", err);
-      res.status(500).send({ error: "Internal server error" });
-    });
-
-    call.on("end", () => {
-      console.log("Stream ended for user:", userId);
-      res.status(200).json({ users }); // Trả về danh sách users cho request này
-    });
-
-    // Gửi message yêu cầu lắng nghe thay đổi
-    const request = {
-      database: "projects/locket-4252a/databases/(default)",
-      add_target: {
-        target_id: Math.floor(Math.random() * 10000), // Tạo target_id ngẫu nhiên
-        query: {
-          parent: `projects/locket-4252a/databases/(default)/documents/users/${userId}`,
-          structured_query: {
-            from: [{ collection_id: "friends" }],
-            order_by: [
-              { field: { field_path: "__name__" }, direction: "ASCENDING" },
-            ],
-          },
+  // Sử dụng target_id cố định thay vì ngẫu nhiên
+  const targetId = userId.hashCode() % 10000;
+  const request = {
+    database: "projects/locket-4252a/databases/(default)",
+    add_target: {
+      target_id: targetId,
+      query: {
+        parent: `projects/locket-4252a/databases/(default)/documents/users/${userId}`,
+        structured_query: {
+          from: [{ collection_id: "friends" }],
+          order_by: [
+            { field: { field_path: "__name__" }, direction: "ASCENDING" },
+          ],
         },
       },
-    };
+    },
+  };
 
-    console.log(`Sending Listen request for user ${userId}...`);
-    call.write(request);
-  } catch (error) {
-    console.error("Error:", error);
-    if (error.code === 16) {
-      res.status(401).send({ error: "Invalid token" });
-    }
-    res.status(500).send({ error: "Internal server error" });
-  }
+  call.write(request);
 });
 
 // Lắng nghe kết nối trên cổng đã cấu hình
