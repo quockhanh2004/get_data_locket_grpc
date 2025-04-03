@@ -2,10 +2,13 @@ const express = require("express");
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
 const path = require("path");
+require('dotenv').config();
+
+const PORT = process.env.PORT
 
 // Khởi tạo ứng dụng Express
 const app = express();
-const port = 3000;
+const port = PORT;
 
 // Giải mã JSON từ body request
 app.use(express.json());
