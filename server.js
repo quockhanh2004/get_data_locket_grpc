@@ -30,10 +30,6 @@ const firestoreProto =
   grpc.loadPackageDefinition(packageDefinition).google.firestore.v1;
 
 // Khởi tạo kết nối đến Firestore
-const client = new firestoreProto.Firestore(
-  "firestore.googleapis.com:443",
-  grpc.credentials.createSsl()
-);
 
 // Định nghĩa API POST để nhận token và userId
 app.post("/listen", (req, res) => {
@@ -42,6 +38,10 @@ app.post("/listen", (req, res) => {
   if (!token || !userId) {
     return res.status(400).send({ error: "Token and userId are required" });
   }
+  const client = new firestoreProto.Firestore(
+    "firestore.googleapis.com:443",
+    grpc.credentials.createSsl()
+  );
 
   const metadata = new grpc.Metadata();
   metadata.add("Authorization", `Bearer ${token}`);
