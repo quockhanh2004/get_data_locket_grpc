@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment: server_env
+    environment: Production
     strategy:
       matrix:
         node-version: [20.x]
@@ -30,7 +30,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    environment: server_env
+    environment: Production
     needs: build
     steps:
       - name: Checkout repository
