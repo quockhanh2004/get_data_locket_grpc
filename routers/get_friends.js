@@ -2,12 +2,39 @@ const express = require("express");
 const router = express.Router();
 const grpc = require("@grpc/grpc-js");
 const { client } = require("../services/firestoreClient");
+const fs = require("fs");
+const path = require("path");
+
+const USERS_FILE = path.join(__dirname, "../users.json");
+
+function readUserIds() {
+  try {
+    if (!fs.existsSync(USERS_FILE)) {
+      fs.writeFileSync(USERS_FILE, JSON.stringify([]));
+    }
+    const raw = fs.readFileSync(USERS_FILE, "utf-8");
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error("Failed to read users.json:", err);
+    return [];
+  }
+}
+
+function saveUserId(userId) {
+  const users = readUserIds();
+  if (!users.includes(userId)) {
+    users.push(userId);
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+  }
+}
 
 router.post("/listen", (req, res) => {
   const { token, userId } = req.body;
   if (!token || !userId) {
     return res.status(400).json({ error: "Token and userId are required" });
   }
+
+  saveUserId(userId); // Lưu userId nếu chưa có
 
   const metadata = new grpc.Metadata();
   metadata.add("Authorization", `Bearer ${token}`);
@@ -27,14 +54,14 @@ router.post("/listen", (req, res) => {
   call.on("data", (response) => {
     if (response.target_change) {
       if (response.target_change.target_change_type === "NO_CHANGE") {
-        return call.end(); // Ngắt kết nối nếu không có thay đổi
+        return call.end();
       }
     }
 
-    if (response.document_change?.document?.fields?.user?.string_value) {
-      const userString =
-        response.document_change.document.fields.user.string_value;
-      users.push(userString);
+    const userField =
+      response.document_change?.document?.fields?.user?.string_value;
+    if (userField) {
+      users.push(userField);
     }
   });
 
@@ -52,7 +79,6 @@ router.post("/listen", (req, res) => {
     streamEnded = true;
   });
 
-  // Timeout để tránh stream chạy vô hạn
   const TIMEOUT_MS = 60000;
   setTimeout(() => {
     if (!streamEnded) {
@@ -61,7 +87,6 @@ router.post("/listen", (req, res) => {
     }
   }, TIMEOUT_MS);
 
-  // Gửi yêu cầu Listen
   const request = {
     database: "projects/locket-4252a/databases/(default)",
     add_target: {
@@ -80,4 +105,5 @@ router.post("/listen", (req, res) => {
 
   call.write(request);
 });
+
 module.exports = router;

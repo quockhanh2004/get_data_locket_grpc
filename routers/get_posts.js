@@ -47,7 +47,6 @@ router.post("/posts", (req, res) => {
 
   call.on("end", () => {
     if (streamEnded) return;
-    console.log(`Stream ended for user: ${userId}`);
     res.status(200).json({ post });
     streamEnded = true;
   });
@@ -56,7 +55,6 @@ router.post("/posts", (req, res) => {
   const TIMEOUT_MS = 60000;
   setTimeout(() => {
     if (!streamEnded) {
-      console.log("Stream timeout. Closing connection...");
       call.end();
     }
   }, TIMEOUT_MS);
