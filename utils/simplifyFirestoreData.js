@@ -7,6 +7,7 @@ function simplifyFirestoreData(data) {
     id: fields.canonical_uid?.string_value,
     caption: fields.caption?.string_value,
     thumbnail_url: fields.thumbnail_url?.string_value,
+    video_url: fields.video_url?.string_value,
     user: fields.user?.string_value,
     canonical_uid: fields.canonical_uid?.string_value,
     md5: fields.md5?.string_value,
