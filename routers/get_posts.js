@@ -41,8 +41,9 @@ router.post("/posts", (req, res) => {
 
   call.on("error", (err) => {
     if (streamEnded) return;
-    console.error("gRPC Stream Error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("gRPC Stream Error:", err.message);
+    res.status(500).json({ error: err.message });
+    streamEnded = true;
   });
 
   call.on("end", () => {
