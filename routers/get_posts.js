@@ -3,12 +3,15 @@ const router = express.Router();
 const grpc = require("@grpc/grpc-js");
 const { client } = require("../services/firestoreClient");
 const simplifyFirestoreData = require("../utils/simplifyFirestoreData");
+const { saveUserId } = require("../utils/listMyClient");
 
 router.post("/posts", (req, res) => {
   const { token, userId } = req.body;
   if (!token || !userId) {
     return res.status(400).json({ error: "Token and userId are required" });
   }
+
+  saveUserId(userId);
 
   const metadata = new grpc.Metadata();
   metadata.add("content-type", "application/grpc");
