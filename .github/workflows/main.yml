@@ -27,6 +27,7 @@ jobs:
             git fetch --all
             git pull
             yarn install
+            yarn build
 
   deploy:
     runs-on: ubuntu-latest

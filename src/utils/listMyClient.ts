@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
 
 const USERS_FILE = path.join(__dirname, "../users.json");
 
@@ -16,7 +16,7 @@ function readUserIds() {
   }
 }
 
-function saveUserId(userId) {
+function saveUserId(userId: string) {
   const users = readUserIds();
   if (!users.includes(userId)) {
     users.push(userId);
@@ -24,7 +24,4 @@ function saveUserId(userId) {
   }
 }
 
-module.exports = {
-  readUserIds,
-  saveUserId,
-};
+export { readUserIds, saveUserId };

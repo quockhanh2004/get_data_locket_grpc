@@ -1,18 +1,19 @@
-const express = require("express");
-const router = express.Router();
-const grpc = require("@grpc/grpc-js");
-const { client } = require("../services/firestoreClient");
-const { saveUserId } = require("../utils/listMyClient");
+import { Request, Response } from "express";
+import grpc, { Metadata } from "@grpc/grpc-js";
+import { client } from "../services/firestoreClient";
+import { saveUserId } from "../utils/listMyClient";
+import { ListenResponse } from "../models/firebase.model";
 
-router.post("/listen", (req, res) => {
-  const { token, userId } = req.body;
+function handleGetFriends (req: Request, res: Response) {
+    const { token, userId } = req.body as { token?: string; userId?: string };
+
   if (!token || !userId) {
     return res.status(400).json({ error: "Token and userId are required" });
   }
 
   saveUserId(userId); // Lưu userId nếu chưa có
 
-  const metadata = new grpc.Metadata();
+  const metadata = new Metadata();
   metadata.add("Authorization", `Bearer ${token}`);
   metadata.add("content-type", "application/grpc");
   metadata.add(
@@ -22,12 +23,13 @@ router.post("/listen", (req, res) => {
   metadata.add("grpc-accept-encoding", "gzip");
   metadata.add("te", "trailers");
   metadata.add("user-agent", "grpc-java-okhttp/1.62.2");
+
   const call = client.Listen(metadata);
 
-  const users = [];
+  const users: string[] = [];
   let streamEnded = false;
 
-  call.on("data", (response) => {
+  call.on("data", (response: ListenResponse) => {
     if (response.target_change) {
       if (response.target_change.target_change_type === "NO_CHANGE") {
         return call.end();
@@ -41,7 +43,7 @@ router.post("/listen", (req, res) => {
     }
   });
 
-  call.on("error", (err) => {
+  call.on("error", (err: grpc.ServiceError) => {
     if (streamEnded) return;
     console.error("gRPC Stream Error:", err.message);
     res.status(500).json({ error: err.message });
@@ -80,6 +82,5 @@ router.post("/listen", (req, res) => {
   };
 
   call.write(request);
-});
-
-module.exports = router;
+}
+export default handleGetFriends;
