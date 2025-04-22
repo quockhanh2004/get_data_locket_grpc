@@ -1,7 +1,10 @@
 import fs from "fs";
 import path from "path";
 
-const USERS_FILE = path.join(__dirname, "../users.json");
+const USERS_FILE = path.resolve(
+  process.cwd(),
+  "users.json"
+);
 
 function readUserIds() {
   try {
