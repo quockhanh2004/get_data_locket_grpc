@@ -8,29 +8,31 @@ import simplifyFirestoreData from "../utils/simplifyFirestoreData";
 import { Post } from "../models/posts.model";
 
 function handleGetPosts(req: Request, res: Response) {
-  const { token, userId, timestamp } = req.body as GetPostsParams;
-  if (!token || !userId) {
+  const request = req.body as GetPostsParams;
+  if (!request.token || !request.userId) {
     return res.status(400).json({ error: "Token and userId are required" });
   }
-  saveUserId(userId);
+  saveUserId(request.userId);
 
   const post: Post[] = [];
   const deleted: string[] = [];
   let streamEnded = false;
   const TIMEOUT_MS = 60000;
 
-  const metadataPosts = createMetadata(token, "locket");
-  const metadataDeleted = createMetadata(token, "(default)");
+  const metadataPosts = createMetadata(request.token, "locket");
+  const metadataDeleted = createMetadata(request.token, "(default)");
 
   const callGetPosts = client.Listen(metadataPosts);
   const callGetDeleted = client.Listen(metadataDeleted);
 
   callGetPosts.on("data", (response: ListenResponse) => {
     if (response.target_change?.target_change_type === "NO_CHANGE") {
-      if (!timestamp) {
+      if (!request.timestamp) {
         return callGetPosts.end();
       } else {
-        callGetDeleted.write(getDeletedRequest(userId, timestamp));
+        callGetDeleted.write(
+          getDeletedRequest(request.userId, request.timestamp)
+        );
       }
     }
 
@@ -86,7 +88,7 @@ function handleGetPosts(req: Request, res: Response) {
     if (!streamEnded) callGetPosts.end();
   }, TIMEOUT_MS);
 
-  callGetPosts.write(getPostRequest(userId));
+  callGetPosts.write(getPostRequest(request.userId, request.timestamp));
 }
 
 function createMetadata(token: string, dbName: string) {
@@ -103,7 +105,7 @@ function createMetadata(token: string, dbName: string) {
   return metadata;
 }
 
-function getPostRequest(userId: string) {
+function getPostRequest(userId: string, timestamp?: string | number) {
   return {
     database: "projects/locket-4252a/databases/locket",
     add_target: {
@@ -111,16 +113,18 @@ function getPostRequest(userId: string) {
       query: {
         parent: `projects/locket-4252a/databases/locket/documents/history/${userId}`,
         structured_query: {
-          end_at: {
-            before: true,
-            values: [
-              {
-                timestamp_value: {
-                  seconds: "1743313268",
-                },
-              },
-            ],
-          },
+          start_at: timestamp
+            ? {
+                before: true,
+                values: [
+                  {
+                    timestamp_value: {
+                      seconds: timestamp,
+                    },
+                  },
+                ],
+              }
+            : undefined,
           from: [{ collection_id: "entries" }],
           order_by: [
             { direction: "DESCENDING", field: { field_path: "date" } },
@@ -155,6 +159,7 @@ function getDeletedRequest(userId: string, timestamp: string | number) {
             { direction: "ASCENDING", field: { field_path: "date" } },
             { direction: "ASCENDING", field: { field_path: "__name__" } },
           ],
+          limit: { value: 30 },
         },
       },
       target_id: 3,
