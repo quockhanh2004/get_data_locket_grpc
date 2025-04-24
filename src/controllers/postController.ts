@@ -20,7 +20,7 @@ function handleGetPosts(req: Request, res: Response) {
 
   let responded = false;
 
-  const TIMEOUT_MS = 60000;
+  const TIMEOUT_MS = 30000;
   const metadataPosts = createMetadata(token, "locket");
   const metadataDeleted = createMetadata(token, "(default)");
 

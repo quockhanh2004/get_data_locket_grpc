@@ -63,7 +63,7 @@ function handleGetFriends(req: Request, res: Response) {
     safeSend(() => res.status(200).json({ users }));
   });
 
-  const TIMEOUT_MS = 60000;
+  const TIMEOUT_MS = 20000;
   setTimeout(() => {
     if (!streamEnded) {
       console.log("Stream timeout. Closing connection...");
