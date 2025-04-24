@@ -4,14 +4,13 @@ import { client } from "../services/firestoreClient";
 import { saveUserId } from "../utils/listMyClient";
 import { ListenResponse } from "../models/firebase.model";
 
-function handleGetFriends (req: Request, res: Response) {
-    const { token, userId } = req.body as { token?: string; userId?: string };
-
+function handleGetFriends(req: Request, res: Response) {
+  const { token, userId } = req.body as { token?: string; userId?: string };
   if (!token || !userId) {
     return res.status(400).json({ error: "Token and userId are required" });
   }
 
-  saveUserId(userId); // Lưu userId nếu chưa có
+  saveUserId(userId);
 
   const metadata = new Metadata();
   metadata.add("Authorization", `Bearer ${token}`);
@@ -29,11 +28,16 @@ function handleGetFriends (req: Request, res: Response) {
   const users: string[] = [];
   let streamEnded = false;
 
+  function safeSend(callback: () => void) {
+    if (!streamEnded) {
+      streamEnded = true;
+      callback();
+    }
+  }
+
   call.on("data", (response: ListenResponse) => {
-    if (response.target_change) {
-      if (response.target_change.target_change_type === "NO_CHANGE") {
-        return call.end();
-      }
+    if (response.target_change?.target_change_type === "NO_CHANGE") {
+      return call.end();
     }
 
     const userField =
@@ -41,20 +45,22 @@ function handleGetFriends (req: Request, res: Response) {
     if (userField) {
       users.push(userField);
     }
+
+    const deletedDoc = response.document_delete?.document;
+    if (deletedDoc) {
+      const deletedUser = deletedDoc.split("/").pop();
+      console.log("User deleted:", deletedUser);
+    }
   });
 
   call.on("error", (err: grpc.ServiceError) => {
-    if (streamEnded) return;
     console.error("gRPC Stream Error:", err.message);
-    res.status(500).json({ error: err.message });
-    streamEnded = true;
+    safeSend(() => res.status(500).json({ error: err.message }));
   });
 
   call.on("end", () => {
-    if (streamEnded) return;
     console.log(`Stream ended for user: ${userId}`);
-    res.status(200).json({ users });
-    streamEnded = true;
+    safeSend(() => res.status(200).json({ users }));
   });
 
   const TIMEOUT_MS = 60000;
@@ -68,7 +74,7 @@ function handleGetFriends (req: Request, res: Response) {
   const request = {
     database: "projects/locket-4252a/databases/(default)",
     add_target: {
-      target_id: Math.floor(Math.random() * 10000),
+      target_id: 1001,
       query: {
         parent: `projects/locket-4252a/databases/(default)/documents/users/${userId}`,
         structured_query: {
@@ -83,4 +89,5 @@ function handleGetFriends (req: Request, res: Response) {
 
   call.write(request);
 }
+
 export default handleGetFriends;
