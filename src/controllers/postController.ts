@@ -63,6 +63,7 @@ function handleGetPosts(req: Request, res: Response) {
 
   callGetDeleted.on("data", (response: ListenResponse) => {
     if (response.target_change?.target_change_type === "NO_CHANGE") {
+      callGetPosts.end();
       return callGetDeleted.end();
     }
 
