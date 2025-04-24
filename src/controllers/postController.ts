@@ -1,108 +1,114 @@
-import { GetPostsParams } from "../models/bodyRequest.model";
-import { ListenResponse } from "../models/firebase.model";
 import { Request, Response } from "express";
-import { saveUserId } from "../utils/listMyClient";
 import { client } from "../services/firestoreClient";
 import * as grpc from "@grpc/grpc-js";
-import simplifyFirestoreData from "../utils/simplifyFirestoreData";
 import { Post } from "../models/posts.model";
+import { GetPostsParams } from "../models/bodyRequest.model";
+import { ListenResponse } from "../models/firebase.model";
+import simplifyFirestoreData from "../utils/simplifyFirestoreData";
+import { saveUserId } from "../utils/listMyClient";
 
 function handleGetPosts(req: Request, res: Response) {
-  const request = req.body as GetPostsParams;
-  if (!request.token || !request.userId) {
+  const { token, userId, timestamp } = req.body as GetPostsParams;
+  if (!token || !userId) {
     return res.status(400).json({ error: "Token and userId are required" });
   }
-  saveUserId(request.userId);
 
-  const post: Post[] = [];
+  saveUserId(userId);
+
+  const posts: Post[] = [];
   const deleted: string[] = [];
-  let streamEnded = false;
+
+  let responded = false;
+
   const TIMEOUT_MS = 60000;
+  const metadataPosts = createMetadata(token, "locket");
+  const metadataDeleted = createMetadata(token, "(default)");
 
-  const metadataPosts = createMetadata(request.token, "locket");
-  const metadataDeleted = createMetadata(request.token, "(default)");
+  const callPosts = client.Listen(metadataPosts);
+  const callDeleted = client.Listen(metadataDeleted);
 
-  const callGetPosts = client.Listen(metadataPosts);
-  const callGetDeleted = client.Listen(metadataDeleted);
+  const sendResponse = () => {
+    if (responded) return;
+    responded = true;
+    res.status(200).json({ post: posts, deleted });
+  };
 
-  callGetPosts.on("data", (response: ListenResponse) => {
+  const sendError = (err: any) => {
+    if (responded) return;
+    responded = true;
+    console.error("gRPC Stream Error:", err.message);
+    res.status(500).json({ error: err.message });
+  };
+
+  callPosts.on("data", (response: ListenResponse) => {
+    const change = response.document_change?.document?.fields;
+    const name = response.document_change?.document?.name;
+
     if (response.target_change?.target_change_type === "NO_CHANGE") {
-      if (!request.timestamp) {
-        return callGetPosts.end();
+      if (!timestamp) {
+        callPosts.end();
       } else {
-        callGetDeleted.write(
-          getDeletedRequest(request.userId, request.timestamp)
-        );
+        callDeleted.write(getDeletedRequest(userId, timestamp));
       }
+      return;
     }
 
-    if (response.document_change?.document?.fields) {
-      const doc = response.document_change.document;
-      const fields = doc.fields;
-
-      if (
-        doc.name &&
-        doc.name.includes("/deleted_moments/") &&
-        fields?.moment_uid?.string_value
-      ) {
-        deleted.push(fields.moment_uid.string_value);
-      } else {
-        const data = simplifyFirestoreData(response);
-        if (!data) return;
-        post.push(data);
-      }
+    if (
+      name?.includes("/deleted_moments/") &&
+      change?.moment_uid?.string_value
+    ) {
+      deleted.push(change.moment_uid.string_value);
+    } else {
+      const data = simplifyFirestoreData(response);
+      if (data) posts.push(data);
     }
   });
 
-  callGetPosts.on("error", (err: any) =>
-    handleError(err, res, () => (streamEnded = true))
-  );
-  callGetPosts.on("end", () =>
-    handleEnd(res, post, deleted, () => (streamEnded = true), streamEnded)
-  );
-
-  callGetDeleted.on("data", (response: ListenResponse) => {
-    if (response.target_change?.target_change_type === "NO_CHANGE") {
-      callGetPosts.end();
-      return callGetDeleted.end();
-    }
-
+  callDeleted.on("data", (response: ListenResponse) => {
     const doc = response.document_change?.document;
     const fields = doc?.fields;
     if (
-      doc?.name &&
-      doc?.name.includes("/deleted_moments/") &&
+      doc?.name?.includes("/deleted_moments/") &&
       fields?.moment_uid?.string_value
     ) {
       deleted.push(fields.moment_uid.string_value);
     }
+
+    if (response.target_change?.target_change_type === "NO_CHANGE") {
+      callPosts.end();
+      callDeleted.end();
+    }
   });
 
-  callGetDeleted.on("error", (err: any) =>
-    handleError(err, res, () => (streamEnded = true))
-  );
-  callGetDeleted.on("end", () =>
-    handleEnd(res, post, deleted, () => (streamEnded = true), streamEnded)
-  );
+  callPosts.on("end", sendResponse);
+  callDeleted.on("end", sendResponse);
+  callPosts.on("error", sendError);
+  callDeleted.on("error", sendError);
 
+  // Safety timeout
   setTimeout(() => {
-    if (!streamEnded) callGetPosts.end();
+    if (!responded) {
+      callPosts.end();
+      callDeleted.end();
+      sendResponse();
+    }
   }, TIMEOUT_MS);
 
-  callGetPosts.write(getPostRequest(request.userId, request.timestamp));
+  // Start request
+  callPosts.write(getPostRequest(userId, timestamp));
 }
 
 function createMetadata(token: string, dbName: string) {
   const metadata = new grpc.Metadata();
-  metadata.add("content-type", "application/grpc");
+  metadata.add("Authorization", `Bearer ${token}`);
   metadata.add(
     "google-cloud-resource-prefix",
     `projects/locket-4252a/databases/${dbName}`
   );
+  metadata.add("content-type", "application/grpc");
   metadata.add("grpc-accept-encoding", "gzip");
   metadata.add("te", "trailers");
   metadata.add("user-agent", "grpc-java-okhttp/1.62.2");
-  metadata.add("Authorization", `Bearer ${token}`);
   return metadata;
 }
 
@@ -110,31 +116,24 @@ function getPostRequest(userId: string, timestamp?: string | number) {
   return {
     database: "projects/locket-4252a/databases/locket",
     add_target: {
-      expected_count: {},
+      target_id: 2,
       query: {
         parent: `projects/locket-4252a/databases/locket/documents/history/${userId}`,
         structured_query: {
-          start_at: timestamp
-            ? {
-                before: true,
-                values: [
-                  {
-                    timestamp_value: {
-                      seconds: timestamp,
-                    },
-                  },
-                ],
-              }
-            : undefined,
           from: [{ collection_id: "entries" }],
           order_by: [
             { direction: "DESCENDING", field: { field_path: "date" } },
             { direction: "DESCENDING", field: { field_path: "__name__" } },
           ],
           limit: { value: 30 },
+          start_at: timestamp
+            ? {
+                before: true,
+                values: [{ timestamp_value: { seconds: timestamp } }],
+              }
+            : undefined,
         },
       },
-      target_id: 2,
     },
   };
 }
@@ -143,47 +142,24 @@ function getDeletedRequest(userId: string, timestamp: string | number) {
   return {
     database: "projects/locket-4252a/databases/(default)",
     add_target: {
-      expected_count: {},
+      target_id: 3,
       query: {
         parent: `projects/locket-4252a/databases/(default)/documents/users/${userId}`,
         structured_query: {
-          start_at: {
-            before: false,
-            values: [
-              {
-                timestamp_value: { seconds: timestamp },
-              },
-            ],
-          },
           from: [{ collection_id: "deleted_moments" }],
           order_by: [
             { direction: "ASCENDING", field: { field_path: "date" } },
             { direction: "ASCENDING", field: { field_path: "__name__" } },
           ],
           limit: { value: 30 },
+          start_at: {
+            before: false,
+            values: [{ timestamp_value: { seconds: timestamp } }],
+          },
         },
       },
-      target_id: 3,
     },
   };
-}
-
-function handleError(err: any, res: Response, setEnded: () => void) {
-  setEnded();
-  console.error("gRPC Stream Error:", err.message);
-  res.status(500).json({ error: err.message });
-}
-
-function handleEnd(
-  res: Response,
-  post: Post[],
-  deleted: string[],
-  setEnded: () => void,
-  streamEnded: boolean
-) {
-  if (streamEnded) return;
-  setEnded();
-  res.status(200).json({ post, deleted });
 }
 
 export { handleGetPosts };

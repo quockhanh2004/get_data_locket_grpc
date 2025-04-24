@@ -37,7 +37,6 @@ function simplifyFirestoreData(data: ListenResponse): Post | null {
 
   // Kiểm tra các trường cơ bản phải có
   if (!document || !fields) {
-    console.error("Document change or fields missing in Firestore data");
     return null;
   }
 
