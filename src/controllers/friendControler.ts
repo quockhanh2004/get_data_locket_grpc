@@ -3,9 +3,12 @@ import grpc, { Metadata } from "@grpc/grpc-js";
 import { client } from "../services/firestoreClient";
 import { saveUserId } from "../utils/listMyClient";
 import { ListenResponse } from "../models/firebase.model";
+import { decodeJwt } from "../utils/decode";
 
 function handleGetFriends(req: Request, res: Response) {
-  const { token, userId } = req.body as { token?: string; userId?: string };
+  const { token } = req.body;
+  const userId = decodeJwt(token)?.user_id;
+  
   if (!token || !userId) {
     return res.status(400).json({ error: "Token and userId are required" });
   }

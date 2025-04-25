@@ -1,125 +1,114 @@
+import { ListenResponse, Value } from "../models/firebase.model";
+import { Overlay, Post } from "../models/posts.model";
 import {
-  ListenResponse,
-  TimestampValue,
-  Value,
-} from "../models/firebase.model";
-import { Post, Overlay } from "../models/posts.model"; // Import các interface mới
+  getString,
+  getInteger,
+  timestampToSeconds,
+} from "./firestoreConverters";
 
-// Helper function để chuyển đổi TimestampValue thành Unix timestamp (số giây)
-// Xử lý trường hợp timestamp hoặc seconds/nanos có thể là undefined
-function timestampToSeconds(ts?: TimestampValue): number | undefined {
-  if (!ts?.seconds) {
-    return undefined;
-  }
-  // Có thể chọn trả về float nếu cần độ chính xác nano:
-  // const seconds = Number(ts.seconds);
-  // const nanos = Number(ts.nanos || 0);
-  // return seconds + nanos / 1e9;
-  // Hoặc chỉ trả về số giây dạng integer:
-  return parseInt(ts.seconds, 10);
-}
-
-// Helper function để trích xuất giá trị từ Firestore Value object một cách an toàn
-function getString(value?: Value): string | undefined {
-  return value?.string_value;
-}
-
-function getInteger(value?: Value): number | undefined {
-  const intStr = value?.integer_value;
-  if (intStr === undefined) return undefined;
-  const num = parseInt(intStr, 10);
-  return isNaN(num) ? undefined : num;
-}
-
-function simplifyFirestoreData(data: ListenResponse): Post | null {
+/**
+ * Chuyển đổi dữ liệu từ Firestore thành object Post rõ ràng
+ */
+export function simplifyFirestoreData(data: ListenResponse) {
   const document = data.document_change?.document;
   const fields = document?.fields;
 
-  // Kiểm tra các trường cơ bản phải có
-  if (!document || !fields) {
-    return null;
-  }
+  if (!document || !fields) return null;
 
-  // Trích xuất các trường chính với kiểm tra null/undefined an toàn
   const canonicalUid = getString(fields.canonical_uid);
   const thumbnailUrl = getString(fields.thumbnail_url);
   const user = getString(fields.user);
 
-  // Kiểm tra các trường bắt buộc của Post phải có giá trị
   if (!canonicalUid || !thumbnailUrl || !user) {
     console.error(
-      "Essential fields (canonical_uid, thumbnail_url, user) missing in Firestore document"
+      "Missing essential fields (canonical_uid, thumbnail_url, user) in Firestore document"
     );
     return null;
   }
 
-  // Xử lý overlays
   const overlayValues = fields.overlays?.array_value?.values || [];
-  const overlays: Overlay[] = overlayValues
-    .map((itemValue): Overlay | null => {
+  const overlays = overlayValues
+    .map((itemValue) => {
       const overlayFields = itemValue.map_value?.fields;
-      if (!overlayFields) return null; // Bỏ qua nếu item không hợp lệ
+      if (!overlayFields) return null;
 
-      const dataMapValue = overlayFields.data?.map_value;
-      const dataFields = dataMapValue?.fields;
+      const dataFields = overlayFields.data?.map_value?.fields;
+      if (!dataFields) return null;
 
-      let overlayData: any | undefined = undefined;
-      if (dataFields) {
-        // Trích xuất background colors
-        const backgroundColors =
-          dataFields.background?.map_value?.fields?.colors?.array_value?.values
-            ?.map((colorValue) => getString(colorValue)) // Lấy string_value
-            .filter((c): c is string => !!c); // Loại bỏ các giá trị undefined/null
+      const backgroundFields = dataFields.background?.map_value?.fields ?? {};
+      const iconFields = dataFields.icon?.map_value?.fields ?? {};
+      const payloadFields = dataFields.payload?.map_value?.fields ?? {};
 
-        // Trích xuất icon data
-        const iconFields = dataFields.icon?.map_value?.fields;
-        const iconData: any | undefined = iconFields
-          ? {
-              type: getString(iconFields.type),
-              data: getString(iconFields.data),
-            }
-          : undefined;
+      // Parse background colors
+      const backgroundColors =
+        backgroundFields.colors?.array_value?.values
+          ?.map(getString)
+          .filter((color): color is string => color !== undefined) || [];
 
-        overlayData = {
-          type: getString(dataFields.type),
-          text: getString(dataFields.text),
-          text_color: getString(dataFields.text_color),
-          max_lines: getInteger(dataFields.max_lines),
-          background:
-            backgroundColors && backgroundColors.length > 0
-              ? { colors: backgroundColors } // Chỉ thêm background nếu có colors
-              : // Thêm material_blur nếu cần:
-                // material_blur: getString(dataFields.background?.map_value?.fields?.material_blur)
-                undefined,
-          icon: iconData,
-        };
-      }
+      // Parse payload fields
+      const parsedPayload = Object.fromEntries(
+        Object.entries(payloadFields).map(([key, value]): [string, any] => {
+          if ("string_value" in value) return [key, value.string_value];
+          if ("double_value" in value) return [key, value.double_value];
+          if ("integer_value" in value)
+            return [key, parseInt(value.integer_value || "0")];
+          if ("boolean_value" in value) return [key, value.boolean_value];
+          if ("array_value" in value) {
+            const arr = value.array_value?.values || [];
+            const parsedArr = arr
+              .map((v: Value) => {
+                if ("string_value" in v) return v.string_value;
+                if ("double_value" in v) return v.double_value;
+                if ("integer_value" in v)
+                  return parseInt(v.integer_value || "0");
+                if ("boolean_value" in v) return v.boolean_value;
+                return undefined;
+              })
+              .filter((v) => v !== undefined);
+            return [key, parsedArr];
+          }
+          return [key, null];
+        })
+      );
 
       return {
         overlay_id: getString(overlayFields.overlay_id) || "",
         overlay_type: getString(overlayFields.overlay_type) || "",
         alt_text: getString(overlayFields.alt_text) || "",
-        data: overlayData,
+        data: {
+          type: getString(dataFields.type),
+          text: getString(dataFields.text),
+          text_color: getString(dataFields.text_color),
+          max_lines: getInteger(dataFields.max_lines),
+          background: {
+            colors: backgroundColors,
+            material_blur: getString(backgroundFields.material_blur),
+          },
+          icon: {
+            type: getString(iconFields.type),
+            data: getString(iconFields.data),
+            color: getString(iconFields.color),
+            source: getString(iconFields.source),
+          },
+          payload: parsedPayload,
+        },
       };
     })
-    .filter((o): o is Overlay => o !== null); // Lọc bỏ các giá trị null có thể có từ map
+    .filter((o) => o !== null);
 
-  // Tạo đối tượng Post
-  const post: Post = {
-    id: canonicalUid, // Đã kiểm tra ở trên
+  const post = {
+    id: canonicalUid,
     caption: getString(fields.caption),
-    thumbnail_url: thumbnailUrl, // Đã kiểm tra ở trên
+    thumbnail_url: thumbnailUrl,
     video_url: getString(fields.video_url),
-    user: user, // Đã kiểm tra ở trên
-    canonical_uid: canonicalUid, // Đã kiểm tra ở trên
+    user,
+    canonical_uid: canonicalUid,
     md5: getString(fields.md5),
     date: timestampToSeconds(fields.date?.timestamp_value) || 0,
     create_time: timestampToSeconds(document.create_time) || 0,
     update_time: timestampToSeconds(document.update_time) || 0,
-    overlays: overlays,
+    overlays,
   };
 
   return post;
 }
-
-export default simplifyFirestoreData;

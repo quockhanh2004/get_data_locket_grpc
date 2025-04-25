@@ -4,11 +4,13 @@ import * as grpc from "@grpc/grpc-js";
 import { Post } from "../models/posts.model";
 import { GetPostsParams } from "../models/bodyRequest.model";
 import { ListenResponse } from "../models/firebase.model";
-import simplifyFirestoreData from "../utils/simplifyFirestoreData";
+import { simplifyFirestoreData } from "../utils/simplifyFirestoreData";
 import { saveUserId } from "../utils/listMyClient";
+import { decodeJwt } from "../utils/decode";
 
 function handleGetPosts(req: Request, res: Response) {
-  const { token, userId, timestamp } = req.body as GetPostsParams;
+  const { token, timestamp } = req.body as GetPostsParams;
+  const userId = decodeJwt(token)?.user_id;
   if (!token || !userId) {
     return res.status(400).json({ error: "Token and userId are required" });
   }

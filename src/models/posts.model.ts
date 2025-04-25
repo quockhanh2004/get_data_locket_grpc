@@ -6,9 +6,9 @@ export interface Post {
   user: string;
   canonical_uid: string;
   md5?: string;
-  date: number;
-  create_time: number;
-  update_time: number;
+  date: number | string;
+  create_time: number | string;
+  update_time: number | string;
   overlays: Overlay[];
 }
 
