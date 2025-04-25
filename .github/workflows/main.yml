@@ -24,7 +24,8 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           script: |
             cd /home/khanh/get_friends_locket
-            git fetch --all
+            rm yarn.lock
+            git fetch
             git pull
             yarn install
             yarn build

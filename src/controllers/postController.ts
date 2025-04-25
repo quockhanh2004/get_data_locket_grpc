@@ -19,6 +19,8 @@ function handleGetPosts(req: Request, res: Response) {
 
   const posts: Post[] = [];
   const deleted: string[] = [];
+  let isEndPosts = false;
+  let isEndDeleted = false;
 
   let responded = false;
 
@@ -30,6 +32,10 @@ function handleGetPosts(req: Request, res: Response) {
   const callDeleted = client.Listen(metadataDeleted);
 
   const sendResponse = () => {
+    if (!isEndPosts || !isEndDeleted) {
+      return;
+    }
+
     if (responded) return;
     responded = true;
     res.status(200).json({ post: posts, deleted });
@@ -48,11 +54,7 @@ function handleGetPosts(req: Request, res: Response) {
     const name = response.document_change?.document?.name;
 
     if (change_type === "NO_CHANGE" || change_type === "REMOVE") {
-      if (!timestamp) {
-        callPosts.end();
-      } else {
-        callDeleted.write(getDeletedRequest(userId, timestamp));
-      }
+      callPosts.end();
       return;
     }
 
@@ -79,13 +81,19 @@ function handleGetPosts(req: Request, res: Response) {
     }
 
     if (change_type === "NO_CHANGE" || change_type === "REMOVE") {
-      callPosts.end();
       callDeleted.end();
+      return;
     }
   });
 
-  callPosts.on("end", sendResponse);
-  callDeleted.on("end", sendResponse);
+  callPosts.on("end", () => {
+    isEndPosts = true;
+    sendResponse();
+  });
+  callDeleted.on("end", () => {
+    isEndDeleted = true;
+    sendResponse();
+  });
   callPosts.on("error", sendError);
   callDeleted.on("error", sendError);
 
@@ -100,6 +108,9 @@ function handleGetPosts(req: Request, res: Response) {
 
   // Start request
   callPosts.write(getPostRequest(userId, timestamp));
+  callDeleted.write(
+    getDeletedRequest(userId, timestamp || new Date().getTime())
+  );
 }
 
 function createMetadata(token: string, dbName: string) {
