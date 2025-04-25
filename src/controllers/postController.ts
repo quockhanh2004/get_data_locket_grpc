@@ -42,9 +42,10 @@ function handleGetPosts(req: Request, res: Response) {
 
   callPosts.on("data", (response: ListenResponse) => {
     const change = response.document_change?.document?.fields;
+    const change_type = response.target_change?.target_change_type;
     const name = response.document_change?.document?.name;
 
-    if (response.target_change?.target_change_type === "NO_CHANGE") {
+    if (change_type === "NO_CHANGE" || change_type === "REMOVE") {
       if (!timestamp) {
         callPosts.end();
       } else {
@@ -66,6 +67,7 @@ function handleGetPosts(req: Request, res: Response) {
 
   callDeleted.on("data", (response: ListenResponse) => {
     const doc = response.document_change?.document;
+    const change_type = response.target_change?.target_change_type;
     const fields = doc?.fields;
     if (
       doc?.name?.includes("/deleted_moments/") &&
@@ -74,7 +76,7 @@ function handleGetPosts(req: Request, res: Response) {
       deleted.push(fields.moment_uid.string_value);
     }
 
-    if (response.target_change?.target_change_type === "NO_CHANGE") {
+    if (change_type === "NO_CHANGE" || change_type === "REMOVE") {
       callPosts.end();
       callDeleted.end();
     }
