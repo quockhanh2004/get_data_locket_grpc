@@ -150,8 +150,8 @@ function getDeletedRequest(userId: string, timestamp: string | number) {
         structured_query: {
           from: [{ collection_id: "deleted_moments" }],
           order_by: [
-            { direction: "ASCENDING", field: { field_path: "date" } },
-            { direction: "ASCENDING", field: { field_path: "__name__" } },
+            { direction: "DESCENDING", field: { field_path: "date" } },
+            { direction: "DESCENDING", field: { field_path: "__name__" } },
           ],
           limit: { value: 30 },
           start_at: {
