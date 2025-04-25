@@ -2,11 +2,11 @@
 
 import { TimestampValue, Value } from "../models/firebase.model";
 
-export function getString(field?: Value): string {
-  return field?.string_value ?? "";
+export function getString(field?: Value): string | undefined {
+  return field?.string_value;
 }
 
-export function getInteger(field?: Value): number {
+export function getInteger(field?: Value): number | undefined {
   const value = field?.integer_value;
   return value !== undefined ? parseInt(value) : 0;
 }

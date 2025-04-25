@@ -16,20 +16,20 @@ export interface Overlay {
   overlay_id: OverlayID | string;
   overlay_type: OverlayType | string;
   alt_text: string;
-  data: Data;
+  data?: Data;
 }
 
 export interface Data {
-  type: Type | string;
-  text: string;
-  text_color: string;
-  max_lines: number;
-  background: Background;
+  type?: Type | string;
+  text?: string;
+  text_color?: string;
+  max_lines?: number;
+  background?: Background;
 }
 
 export interface Background {
-  material_blur: string;
-  colors: any[];
+  material_blur?: string;
+  colors?: any[];
 }
 
 export enum Type {
