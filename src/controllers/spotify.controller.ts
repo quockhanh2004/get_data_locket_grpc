@@ -8,7 +8,7 @@ export const exchangeCodeController = async (
     res: Response,
     next: NextFunction
 ): Promise<void> => {
-    const { code, state } = req.body;
+    const { code } = req.body;
 
     if (!code) {
         res.status(400).json({ message: 'Missing authorization code' });
@@ -16,7 +16,7 @@ export const exchangeCodeController = async (
     }
 
     try {
-        const tokenData = await spotifyService.getSpotifyTokens(code, state);
+        const tokenData = await spotifyService.getSpotifyTokens(code);
         res.json({
             access_token: tokenData.access_token,
             refresh_token: tokenData.refresh_token,

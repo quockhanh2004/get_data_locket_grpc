@@ -23,8 +23,7 @@ if (!SPOTIFY_CLIENT_SECRET) {
 }
 
 const getSpotifyTokens = async (
-  code: string,
-  state: string
+  code: string
 ): Promise<SpotifyTokenResponse> => {
   const basicAuth = Buffer.from(
     `${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`
@@ -45,6 +44,7 @@ const getSpotifyTokens = async (
           "Content-Type": "application/x-www-form-urlencoded",
           Authorization: `Basic ${basicAuth}`,
         },
+        timeout: 10000, // timeout 10 giây
       }
     );
     return response.data;
