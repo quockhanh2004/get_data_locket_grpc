@@ -46,7 +46,10 @@ export const refreshTokenController = async (
 
   try {
     const tokenData = await spotifyService.refreshSpotifyTokens(refresh_token);
-    res.json(tokenData);
+    res.json({
+        access_token: tokenData.access_token,
+        expires_in: tokenData.expires_in,
+    });
   } catch (error: any) {
     console.error("Error in refreshTokenController:", error.message);
     res.status(500).json({
