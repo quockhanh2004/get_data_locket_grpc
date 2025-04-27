@@ -15,3 +15,7 @@ export interface ExchangeCodeRequestBody {
   code: string;
   state: string;
 }
+
+export interface RefreshTokenRequestBody {
+  refresh_token: string;
+}

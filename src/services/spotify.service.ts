@@ -70,6 +70,47 @@ const getSpotifyTokens = async (
   }
 };
 
+const refreshSpotifyTokens = async (refreshToken: string) => {
+  const basicAuth = Buffer.from(
+    `${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`
+  ).toString("base64");
+
+  const requestBody = {
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+  };
+
+  try {
+    const response = await axios.post(SPOTIFY_TOKEN_ENDPOINT, requestBody, {
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        Authorization: "Basic " + basicAuth,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<SpotifyErrorResponse>;
+    if (axiosError.response) {
+      console.error(
+        "Spotify API Error:",
+        axiosError.response.status,
+        axiosError.response.data
+      );
+      throw new Error(
+        axiosError.response.data?.error_description ||
+          `Spotify API Error: ${axiosError.response.status}`
+      );
+    } else {
+      console.error(
+        "Network or other error calling Spotify:",
+        axiosError.message
+      );
+      throw new Error("Failed to connect to Spotify token endpoint.");
+    }
+  }
+};
+
 export const spotifyService = {
   getSpotifyTokens,
+  refreshSpotifyTokens,
 };
