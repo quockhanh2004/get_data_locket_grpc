@@ -144,3 +144,20 @@ export function simplifyFirestoreDataChat(data: ListenResponse) {
 
   return chat;
 }
+
+export function simplifyFirestoreDataReactPost(data: ListenResponse) {
+  const document = data.document_change?.document;
+  const fields = document?.fields;
+
+  if (!document || !fields) return null;
+
+  const react = {
+    id: getString(fields.name),
+    value: getString(fields.string),
+    user: getString(fields.user),
+    viewed_at: timestampToSeconds(fields.viewed_at?.timestamp_value) || 0,
+    create_time: timestampToSeconds(document.create_time) || 0,
+  };
+
+  return react;
+}

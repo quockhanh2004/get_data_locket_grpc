@@ -3,7 +3,10 @@ import { client } from "../services/firestoreClient";
 import { Post } from "../models/posts.model";
 import { GetPostsParams } from "../models/bodyRequest.model";
 import { ListenResponse } from "../models/firebase.model";
-import { simplifyFirestoreData } from "../utils/simplifyFirestoreData";
+import {
+  simplifyFirestoreData,
+  simplifyFirestoreDataReactPost,
+} from "../utils/simplifyFirestoreData";
 import { saveUserId } from "../utils/listMyClient";
 import { decodeJwt } from "../utils/decode";
 import { createMetadata } from "../utils/metadata";
@@ -113,6 +116,60 @@ function handleGetPosts(req: Request, res: Response) {
   );
 }
 
+function getReactionPost(req: Request, res: Response) {
+  const { token } = req.body;
+  const idMoment = req.params.postId;
+  const userId = decodeJwt(token)?.user_id;
+  if (!token || !userId) {
+    return res.status(400).json({ error: "Token and userId are required" });
+  }
+
+  const metadata = createMetadata(token, "(default)");
+  const call = client.Listen(metadata);
+
+  const reactions: any[] = [];
+  let responded = false;
+
+  call.on("data", (response: ListenResponse) => {
+    const change = response.document_change?.document?.fields;
+    const change_type = response.target_change?.target_change_type;
+    if (change_type === "NO_CHANGE" || change_type === "REMOVE") {
+      call.end();
+      return;
+    }
+    if (change) {
+      const data = simplifyFirestoreDataReactPost(response);
+      if (data) reactions.push(data);
+    }
+  });
+
+  call.on("error", (err: any) => {
+    console.error("gRPC Stream Error:", err.message);
+    if (!responded) {
+      responded = true;
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  call.on("end", () => {
+    if (!responded) {
+      responded = true;
+      res.status(200).json({ reactions });
+    }
+  });
+
+  // Safety timeout
+  setTimeout(() => {
+    if (!responded) {
+      call.end();
+      res.status(500).json({ error: "Request timed out" });
+    }
+  }, TIMEOUT_MS);
+
+  // Start request
+  call.write(getReactPostRequest(idMoment));
+}
+
 function getPostRequest(userId: string, timestamp?: string | number) {
   return {
     database: "projects/locket-4252a/databases/locket",
@@ -163,4 +220,31 @@ function getDeletedRequest(userId: string, timestamp: string | number) {
   };
 }
 
-export { handleGetPosts };
+function getReactPostRequest(idMoment: string) {
+  return {
+    database: "projects/locket-4252a/databases/(default)",
+    add_target: {
+      query: {
+        parent: `projects/locket-4252a/databases/(default)/documents/moments/${idMoment}`,
+        structured_query: {
+          from: [
+            {
+              collection_id: "reactions",
+            },
+          ],
+          order_by: [
+            {
+              direction: "ASCENDING",
+              field: {
+                field_path: "__name__",
+              },
+            },
+          ],
+        },
+      },
+      target_id: 1,
+    },
+  };
+}
+
+export { handleGetPosts, getReactionPost };

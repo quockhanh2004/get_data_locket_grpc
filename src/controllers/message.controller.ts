@@ -64,39 +64,7 @@ function getMesssageWithUser(req: Request, res: Response) {
     }
   }, TIMEOUT_MS);
 
-  const request = {
-    database: "projects/locket-4252a/databases/(default)",
-    add_target: {
-      query: {
-        parent: `projects/locket-4252a/databases/(default)/documents/conversations/${with_user}`,
-        structured_query: {
-          from: [
-            {
-              collection_id: "messages",
-            },
-          ],
-          limit: {
-            value: 50,
-          },
-          order_by: [
-            {
-              direction: "DESCENDING",
-              field: {
-                field_path: "created_at",
-              },
-            },
-          ],
-          start_at: timestamp
-            ? {
-                before: false,
-                values: [{ timestamp_value: { seconds: timestamp } }],
-              }
-            : undefined,
-        },
-      },
-      target_id: 1,
-    },
-  };
+  const request = getMesssageWithUserRequest(with_user, timestamp);
   call.write(request);
 }
 
@@ -152,7 +120,51 @@ function getListMessage(req: Request, res: Response) {
     }
   }, TIMEOUT_MS);
 
-  const request = {
+  const request = getListMessageRequest(userId, timestamp);
+  call.write(request);
+}
+
+function getMesssageWithUserRequest(
+  with_user: string,
+  timestamp: string | number
+) {
+  return {
+    database: "projects/locket-4252a/databases/(default)",
+    add_target: {
+      query: {
+        parent: `projects/locket-4252a/databases/(default)/documents/conversations/${with_user}`,
+        structured_query: {
+          from: [
+            {
+              collection_id: "messages",
+            },
+          ],
+          limit: {
+            value: 50,
+          },
+          order_by: [
+            {
+              direction: "DESCENDING",
+              field: {
+                field_path: "created_at",
+              },
+            },
+          ],
+          start_at: timestamp
+            ? {
+                before: false,
+                values: [{ timestamp_value: { seconds: timestamp } }],
+              }
+            : undefined,
+        },
+      },
+      target_id: 1,
+    },
+  };
+}
+
+function getListMessageRequest(userId: string, timestamp?: string | number) {
+return {
     database: "projects/locket-4252a/databases/(default)",
     add_target: {
       query: {
@@ -184,8 +196,7 @@ function getListMessage(req: Request, res: Response) {
       },
       target_id: 8,
     },
-  };
-  call.write(request);
+  }
 }
 
 export { getMesssageWithUser, getListMessage };
