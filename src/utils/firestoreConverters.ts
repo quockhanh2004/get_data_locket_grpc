@@ -11,6 +11,14 @@ export function getInteger(field?: Value): number | undefined {
   return value !== undefined ? parseInt(value) : 0;
 }
 
+export function getBoolean(field?: Value): boolean | undefined {
+  return field?.boolean_value;
+}
+
+export function getMap(field?: Value): any | undefined {
+  return field?.map_value?.fields;
+}
+
 export function timestampToSeconds(
   timestamp?: TimestampValue
 ): string | number | undefined {

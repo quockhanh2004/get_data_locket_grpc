@@ -4,6 +4,8 @@ import {
   getString,
   getInteger,
   timestampToSeconds,
+  getBoolean,
+  getMap,
 } from "./firestoreConverters";
 
 /**
@@ -18,13 +20,6 @@ export function simplifyFirestoreData(data: ListenResponse) {
   const canonicalUid = getString(fields.canonical_uid);
   const thumbnailUrl = getString(fields.thumbnail_url);
   const user = getString(fields.user);
-
-  if (!canonicalUid || !thumbnailUrl || !user) {
-    console.error(
-      "Missing essential fields (canonical_uid, thumbnail_url, user) in Firestore document"
-    );
-    return null;
-  }
 
   const overlayValues = fields.overlays?.array_value?.values || [];
   const overlays = overlayValues
@@ -111,4 +106,41 @@ export function simplifyFirestoreData(data: ListenResponse) {
   };
 
   return post;
+}
+
+export function simplifyFirestoreDataMessage(data: ListenResponse) {
+  const document = data.document_change?.document;
+  const fields = document?.fields;
+
+  if (!document || !fields) return null;
+
+  const message = {
+    id: getString(fields.name),
+    text: getString(fields.body),
+    sender: getString(fields.sender),
+    thumbnail_url: getString(fields.thumbnail_url),
+    reply_moment: getString(fields.reply_moment),
+    create_time: timestampToSeconds(document.create_time) || 0,
+  };
+
+  return message;
+}
+
+export function simplifyFirestoreDataChat(data: ListenResponse) {
+  const document = data.document_change?.document;
+  const fields = document?.fields;
+
+  if (!document || !fields) return null;
+
+  const chat = {
+    is_read: getBoolean(fields.is_read),
+    last_read_at: timestampToSeconds(fields.last_read_at?.timestamp_value) || 0,
+    latest_message: getString(getMap(fields.latest_message).body),
+    uid: getString(fields.uid),
+    create_time: timestampToSeconds(document.create_time) || 0,
+    last_send_at: timestampToSeconds(getMap(fields.latest_message).created_at),
+    sender: getString(fields.latest_message.map_value?.fields.sender),
+  };
+
+  return chat;
 }

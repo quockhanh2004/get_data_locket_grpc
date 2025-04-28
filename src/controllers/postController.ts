@@ -1,12 +1,13 @@
 import { Request, Response } from "express";
 import { client } from "../services/firestoreClient";
-import * as grpc from "@grpc/grpc-js";
 import { Post } from "../models/posts.model";
 import { GetPostsParams } from "../models/bodyRequest.model";
 import { ListenResponse } from "../models/firebase.model";
 import { simplifyFirestoreData } from "../utils/simplifyFirestoreData";
 import { saveUserId } from "../utils/listMyClient";
 import { decodeJwt } from "../utils/decode";
+import { createMetadata } from "../utils/metadata";
+import { TIMEOUT_MS } from "../utils/constrain";
 
 function handleGetPosts(req: Request, res: Response) {
   const { token, timestamp } = req.body as GetPostsParams;
@@ -17,14 +18,13 @@ function handleGetPosts(req: Request, res: Response) {
 
   saveUserId(userId);
 
-  const posts: Post[] = [];
+  const posts: any[] = [];
   const deleted: string[] = [];
   let isEndPosts = false;
   let isEndDeleted = false;
 
   let responded = false;
 
-  const TIMEOUT_MS = 30000;
   const metadataPosts = createMetadata(token, "locket");
   const metadataDeleted = createMetadata(token, "(default)");
 
@@ -111,20 +111,6 @@ function handleGetPosts(req: Request, res: Response) {
   callDeleted.write(
     getDeletedRequest(userId, timestamp || new Date().getTime())
   );
-}
-
-function createMetadata(token: string, dbName: string) {
-  const metadata = new grpc.Metadata();
-  metadata.add("Authorization", `Bearer ${token}`);
-  metadata.add(
-    "google-cloud-resource-prefix",
-    `projects/locket-4252a/databases/${dbName}`
-  );
-  metadata.add("content-type", "application/grpc");
-  metadata.add("grpc-accept-encoding", "gzip");
-  metadata.add("te", "trailers");
-  metadata.add("user-agent", "grpc-java-okhttp/1.62.2");
-  return metadata;
 }
 
 function getPostRequest(userId: string, timestamp?: string | number) {

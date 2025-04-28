@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import getFriendRouter from "./src/routers/get_friends";
 import getPostRouter from "./src/routers/get_posts";
 import spotifyRouter from "./src/routers/spotify";
+import getMessageRouter from "./src/routers/get_message";
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 app.use("/", getFriendRouter);
 app.use("/", getPostRouter);
 app.use("/", spotifyRouter);
+app.use("/", getMessageRouter);
 
 // Khởi động server
 app.listen(PORT, () => {

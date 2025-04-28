@@ -4,11 +4,12 @@ import { client } from "../services/firestoreClient";
 import { saveUserId } from "../utils/listMyClient";
 import { ListenResponse } from "../models/firebase.model";
 import { decodeJwt } from "../utils/decode";
+import { TIMEOUT_MS } from "../utils/constrain";
 
 function handleGetFriends(req: Request, res: Response) {
   const { token } = req.body;
   const userId = decodeJwt(token)?.user_id;
-  
+
   if (!token || !userId) {
     return res.status(400).json({ error: "Token and userId are required" });
   }
@@ -66,7 +67,6 @@ function handleGetFriends(req: Request, res: Response) {
     safeSend(() => res.status(200).json({ users }));
   });
 
-  const TIMEOUT_MS = 20000;
   setTimeout(() => {
     if (!streamEnded) {
       console.log("Stream timeout. Closing connection...");
