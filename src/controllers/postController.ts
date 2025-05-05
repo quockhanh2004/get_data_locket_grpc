@@ -13,7 +13,7 @@ import { createMetadata } from "../utils/metadata";
 import { TIMEOUT_MS } from "../utils/constrain";
 
 function handleGetPosts(req: Request, res: Response) {
-  const { token, timestamp } = req.body as GetPostsParams;
+  const { token, timestamp, byUserId } = req.body as GetPostsParams;
   const userId = decodeJwt(token)?.user_id;
   if (!token || !userId) {
     return res.status(400).json({ error: "Token and userId are required" });
@@ -110,7 +110,13 @@ function handleGetPosts(req: Request, res: Response) {
   }, TIMEOUT_MS);
 
   // Start request
-  callPosts.write(getPostRequest(userId, timestamp));
+  callPosts.write(
+    getPostRequest({
+      userId,
+      timestamp,
+      byUserId,
+    })
+  );
   callDeleted.write(
     getDeletedRequest(userId, timestamp || new Date().getTime())
   );
@@ -170,7 +176,15 @@ function getReactionPost(req: Request, res: Response) {
   call.write(getReactPostRequest(idMoment));
 }
 
-function getPostRequest(userId: string, timestamp?: string | number) {
+function getPostRequest({
+  userId,
+  timestamp,
+  byUserId,
+}: {
+  userId: string;
+  timestamp?: string | number;
+  byUserId?: string;
+}) {
   return {
     database: "projects/locket-4252a/databases/locket",
     add_target: {
@@ -188,6 +202,19 @@ function getPostRequest(userId: string, timestamp?: string | number) {
             ? {
                 before: true,
                 values: [{ timestamp_value: { seconds: timestamp } }],
+              }
+            : undefined,
+          where: byUserId
+            ? {
+                field_filter: {
+                  field: {
+                    field_path: "user",
+                  },
+                  op: "EQUAL",
+                  value: {
+                    string_value: byUserId,
+                  },
+                },
               }
             : undefined,
         },
