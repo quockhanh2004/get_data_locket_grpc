@@ -197,7 +197,7 @@ function getPostRequest({
             { direction: "DESCENDING", field: { field_path: "date" } },
             { direction: "DESCENDING", field: { field_path: "__name__" } },
           ],
-          limit: { value: 90 },
+          limit: { value: 60 },
           start_at: timestamp
             ? {
                 before: true,
@@ -236,7 +236,7 @@ function getDeletedRequest(userId: string, timestamp: string | number) {
             { direction: "DESCENDING", field: { field_path: "date" } },
             { direction: "DESCENDING", field: { field_path: "__name__" } },
           ],
-          limit: { value: 90 },
+          limit: { value: 60 },
           start_at: {
             before: false,
             values: [{ timestamp_value: { seconds: timestamp } }],
