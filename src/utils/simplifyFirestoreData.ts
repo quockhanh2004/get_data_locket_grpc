@@ -115,7 +115,7 @@ export function simplifyFirestoreDataMessage(data: ListenResponse) {
   if (!document || !fields) return null;
 
   const message = {
-    id: getString(fields.name),
+    id: getString(fields.client_token),
     text: getString(fields.body),
     sender: getString(fields.sender),
     thumbnail_url: getString(fields.thumbnail_url),
