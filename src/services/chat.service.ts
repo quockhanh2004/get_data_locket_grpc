@@ -31,7 +31,7 @@ export const chatWithUser = (
       return res.json({ error: "Token and userId are required" });
     }
     if (socket) {
-      return socket.emit("error", { error: "Token and userId are required" });
+      return socket.emit(SocketEvents.ERROR, { error: "Token and userId are required" });
     }
   }
 
@@ -74,7 +74,7 @@ export const chatWithUser = (
     }
   });
 
-  call.on("error", (err: any) => {
+  call.on(SocketEvents.ERROR, (err: any) => {
     console.error("gRPC Stream Error:", err.message);
     safeSend(() => {
       send({
@@ -170,7 +170,7 @@ export const chatUser = (
     }
   });
 
-  call.on("error", (err: any) => {
+  call.on(SocketEvents.ERROR, (err: any) => {
     console.error("gRPC Stream Error:", err.message);
     safeSend(() => {
       if (res) res.status(500).json({ error: err.message });
