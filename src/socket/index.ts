@@ -4,7 +4,8 @@ import { chatUser, chatWithUser } from "../services/chat.service";
 
 export const setupSocket = (io: Server): void => {
   io.on("connection", (socket: Socket) => {
-    const accessToken = socket.handshake.headers.access_token as string;
+    const accessToken = socket.handshake.auth.access_token as string;
+    console.log("✅ Client connected:", socket.id);
 
     socket.on(SocketEvents.GET_MESSAGE, (msg: GetMessageModel) => {
       const { with_user, timestamp } = msg;
