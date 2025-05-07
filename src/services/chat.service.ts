@@ -2,7 +2,10 @@ import { Response } from "express";
 import { ListenResponse } from "../models/firebase.model";
 import { decodeJwt } from "../utils/decode";
 import { createMetadata } from "../utils/metadata";
-import { simplifyFirestoreDataChat, simplifyFirestoreDataMessage } from "../utils/simplifyFirestoreData";
+import {
+  simplifyFirestoreDataChat,
+  simplifyFirestoreDataMessage,
+} from "../utils/simplifyFirestoreData";
 import { client } from "./firestoreClient";
 import { TIMEOUT_MS } from "../utils/constrain";
 import { Socket } from "socket.io";
@@ -28,14 +31,24 @@ export const chatWithUser = (
 
   if (!token || !userId) {
     if (res) {
-      return res.json({ error: "Token and userId are required" });
+      res.json({ error: "Token and userId are required" });
     }
     if (socket) {
-      return socket.emit(SocketEvents.ERROR, { error: "Token and userId are required" });
+      socket.emit(SocketEvents.ERROR, {
+        error: "Token and userId are required",
+      });
     }
+    return;
   }
 
   if (!with_user) {
+    if (res) res?.json({ error: "with_user is required" });
+    if (socket) {
+      socket.emit(SocketEvents.ERROR, {
+        error: "with_user is required",
+      });
+    }
+
     return;
   }
   const metadata = createMetadata(token, "(default)");
@@ -56,10 +69,7 @@ export const chatWithUser = (
     const change = response.document_change?.document?.fields;
     const change_type = response.target_change?.target_change_type;
 
-    if (
-      (change_type === "NO_CHANGE" || change_type === "REMOVE") &&
-      !isSocket
-    ) {
+    if (change_type === "NO_CHANGE" && !isSocket) {
       call.end();
       return;
     }
@@ -71,6 +81,18 @@ export const chatWithUser = (
       } else {
         send({ isSocket, res, socket, data: messageData });
       }
+    }
+
+    if (change_type === "REMOVE") {
+      send({
+        isSocket,
+        res,
+        socket,
+        data: { message: "Message removed" },
+        status: 200,
+      });
+      call.end();
+      return;
     }
   });
 
@@ -125,7 +147,9 @@ export const chatUser = (
   if (!token || !userId) {
     if (res) return res.json({ error: "Token and userId are required" });
     if (socket)
-      return socket.emit(SocketEvents.ERROR, { error: "Token and userId are required" });
+      return socket.emit(SocketEvents.ERROR, {
+        error: "Token and userId are required",
+      });
     return;
   }
 
@@ -155,10 +179,7 @@ export const chatUser = (
     const change = response.document_change?.document?.fields;
     const change_type = response.target_change?.target_change_type;
 
-    if (
-      (change_type === "NO_CHANGE" || change_type === "REMOVE") &&
-      !isSocket
-    ) {
+    if (change_type === "NO_CHANGE" && !isSocket) {
       call.end();
       return;
     }
@@ -167,6 +188,18 @@ export const chatUser = (
       const messageData = simplifyFirestoreDataChat(response);
       if (res) message.push(messageData);
       if (socket) socket.emit(SocketEvents.LIST_MESSAGE, messageData);
+    }
+
+    if (change_type === "REMOVE") {
+      send({
+        isSocket,
+        res,
+        socket,
+        data: { message: "Message removed" },
+        status: 200,
+      });
+      call.end();
+      return;
     }
   });
 
