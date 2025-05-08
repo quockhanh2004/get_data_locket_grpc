@@ -14,6 +14,8 @@ dotenv.config();
 const PORT = process.env.PORT || 3000;
 
 const app = express();
+app.set('trust proxy', true);
+
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -24,7 +26,6 @@ const io = new Server(server, {
 });
 
 setupSocket(io);
-
 app.use(express.json());
 //lấy địa chỉ ipv4 và path request
 app.use((req, res, next) => {
