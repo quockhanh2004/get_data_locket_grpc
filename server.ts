@@ -26,6 +26,12 @@ const io = new Server(server, {
 setupSocket(io);
 
 app.use(express.json());
+//lấy địa chỉ ipv4 thực hiện request
+app.use((req, res, next) => {
+  const ipv4 = req.socket.remoteAddress;
+  console.log("IPv4:", ipv4);
+  next();
+});
 
 // Đăng ký các router
 app.use("/", getFriendRouter);
