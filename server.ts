@@ -14,7 +14,7 @@ dotenv.config();
 const PORT = process.env.PORT || 3000;
 
 const app = express();
-app.set('trust proxy', true);
+app.set("trust proxy", true);
 
 const server = http.createServer(app);
 
@@ -29,18 +29,19 @@ setupSocket(io);
 app.use(express.json());
 //lấy địa chỉ ipv4 và path request
 app.use((req, res, next) => {
-  const ip = req.headers['x-forwarded-for'] || req.ip;
+  const ip = req.headers["x-forwarded-for"] || req.ip;
   const path = req.path;
-  console.log(`\nRequest from ${ip} to ${path}`);
+  console.log();
+  console.log(`Request from ${ip} to ${path}`);
   next();
 });
 
 io.use((socket, next) => {
-  const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+  const ip =
+    socket.handshake.headers["x-forwarded-for"] || socket.handshake.address;
   console.log(`Socket connection from ${ip}`);
   next();
 });
-
 
 // Đăng ký các router
 app.use("/", getFriendRouter);
