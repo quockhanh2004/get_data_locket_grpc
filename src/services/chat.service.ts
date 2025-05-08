@@ -10,6 +10,7 @@ import { client } from "./firestoreClient";
 import { TIMEOUT_MS } from "../utils/constrain";
 import { Socket } from "socket.io";
 import { SocketEvents } from "../socket/socket.model";
+import {TargetChangeType } from "../models/firebase.model";
 
 interface GetMessageParams {
   isSocket: boolean;
@@ -69,7 +70,7 @@ export const chatWithUser = (
     const change = response.document_change?.document?.fields;
     const change_type = response.target_change?.target_change_type;
 
-    if (change_type === "NO_CHANGE" && !isSocket) {
+    if (change_type === TargetChangeType.NO_CHANGE && !isSocket) {
       call.end();
       return;
     }
@@ -83,7 +84,7 @@ export const chatWithUser = (
       }
     }
 
-    if (change_type === "REMOVE") {
+    if (change_type === TargetChangeType.REMOVE) {
       send({
         isSocket,
         res,
@@ -179,7 +180,7 @@ export const chatUser = (
     const change = response.document_change?.document?.fields;
     const change_type = response.target_change?.target_change_type;
 
-    if (change_type === "NO_CHANGE" && !isSocket) {
+    if (change_type === TargetChangeType.NO_CHANGE && !isSocket) {
       call.end();
       return;
     }
@@ -190,7 +191,7 @@ export const chatUser = (
       if (socket) socket.emit(SocketEvents.LIST_MESSAGE, messageData);
     }
 
-    if (change_type === "REMOVE") {
+    if (change_type === TargetChangeType.REMOVE) {
       send({
         isSocket,
         res,

@@ -6,8 +6,16 @@ export interface ListenResponse {
   filter?: ExistenceFilter;
 }
 
+export enum TargetChangeType {
+  NO_CHANGE = "NO_CHANGE",
+  ADD = "ADD",
+  REMOVE = "REMOVE",
+  CURRENT = "CURRENT",
+  RESET = "RESET",
+}
+
 export interface TargetChange {
-  target_change_type?: "NO_CHANGE" | "ADD" | "REMOVE" | "CURRENT" | "RESET";
+  target_change_type?: TargetChangeType;
   target_ids?: number[];
   cause?: Status;
   resume_token?: string;

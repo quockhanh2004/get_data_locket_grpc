@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import grpc, { Metadata } from "@grpc/grpc-js";
 import { client } from "../services/firestoreClient";
 import { saveUserId } from "../utils/listMyClient";
-import { ListenResponse } from "../models/firebase.model";
+import { ListenResponse, TargetChangeType } from "../models/firebase.model";
 import { decodeJwt } from "../utils/decode";
 import { TIMEOUT_MS } from "../utils/constrain";
 
@@ -40,7 +40,9 @@ function handleGetFriends(req: Request, res: Response) {
   }
 
   call.on("data", (response: ListenResponse) => {
-    if (response.target_change?.target_change_type === "NO_CHANGE") {
+    if (
+      response.target_change?.target_change_type === TargetChangeType.NO_CHANGE
+    ) {
       return call.end();
     }
 

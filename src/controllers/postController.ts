@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { client } from "../services/firestoreClient";
 import { Post } from "../models/posts.model";
 import { GetPostsParams } from "../models/bodyRequest.model";
-import { ListenResponse } from "../models/firebase.model";
+import { ListenResponse, TargetChangeType } from "../models/firebase.model";
 import {
   simplifyFirestoreData,
   simplifyFirestoreDataReactPost,
@@ -56,7 +56,10 @@ function handleGetPosts(req: Request, res: Response) {
     const change_type = response.target_change?.target_change_type;
     const name = response.document_change?.document?.name;
 
-    if (change_type === "NO_CHANGE" || change_type === "REMOVE") {
+    if (
+      change_type === TargetChangeType.NO_CHANGE ||
+      change_type === TargetChangeType.REMOVE
+    ) {
       callPosts.end();
       return;
     }
@@ -83,7 +86,10 @@ function handleGetPosts(req: Request, res: Response) {
       deleted.push(fields.moment_uid.string_value);
     }
 
-    if (change_type === "NO_CHANGE" || change_type === "REMOVE") {
+    if (
+      change_type === TargetChangeType.NO_CHANGE ||
+      change_type === TargetChangeType.REMOVE
+    ) {
       callDeleted.end();
       return;
     }
@@ -139,7 +145,10 @@ function getReactionPost(req: Request, res: Response) {
   call.on("data", (response: ListenResponse) => {
     const change = response.document_change?.document?.fields;
     const change_type = response.target_change?.target_change_type;
-    if (change_type === "NO_CHANGE" || change_type === "REMOVE") {
+    if (
+      change_type === TargetChangeType.NO_CHANGE ||
+      change_type === TargetChangeType.REMOVE
+    ) {
       call.end();
       return;
     }
