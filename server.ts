@@ -26,10 +26,11 @@ const io = new Server(server, {
 setupSocket(io);
 
 app.use(express.json());
-//lấy địa chỉ ipv4 thực hiện request
+//lấy địa chỉ ipv4 và path request
 app.use((req, res, next) => {
-  const ipv4 = req.socket.remoteAddress;
-  console.log("IPv4:", ipv4);
+  const ip = req.socket.remoteAddress;
+  const path = req.path;
+  console.log(`Request from ${ip} to ${path}`);
   next();
 });
 
