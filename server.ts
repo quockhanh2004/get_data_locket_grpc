@@ -29,11 +29,18 @@ setupSocket(io);
 app.use(express.json());
 //lấy địa chỉ ipv4 và path request
 app.use((req, res, next) => {
-  const ip = req.socket.remoteAddress;
+  const ip = req.headers['x-forwarded-for'] || req.ip;
   const path = req.path;
   console.log(`Request from ${ip} to ${path}`);
   next();
 });
+
+io.use((socket, next) => {
+  const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+  console.log(`Socket connection from ${ip}`);
+  next();
+});
+
 
 // Đăng ký các router
 app.use("/", getFriendRouter);
