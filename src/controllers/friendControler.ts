@@ -65,7 +65,6 @@ function handleGetFriends(req: Request, res: Response) {
   });
 
   call.on("end", () => {
-    console.log(`Stream ended for user: ${userId}`);
     safeSend(() => res.status(200).json({ users }));
   });
 

@@ -10,7 +10,7 @@ import { client } from "./firestoreClient";
 import { TIMEOUT_MS } from "../utils/constrain";
 import { Socket } from "socket.io";
 import { SocketEvents } from "../socket/socket.model";
-import {TargetChangeType } from "../models/firebase.model";
+import { TargetChangeType } from "../models/firebase.model";
 
 interface GetMessageParams {
   isSocket: boolean;
@@ -97,7 +97,7 @@ export const chatWithUser = (
     }
   });
 
-  call.on(SocketEvents.ERROR, (err: any) => {
+  call.on("error", (err: any) => {
     console.error("gRPC Stream Error:", err.message);
     safeSend(() => {
       send({
@@ -112,7 +112,6 @@ export const chatWithUser = (
   });
 
   call.on("end", () => {
-    console.log("gRPC Stream End");
     safeSend(() => {
       if (!isSocket) {
         send({ isSocket, res, socket, data: { message } });
@@ -204,7 +203,7 @@ export const chatUser = (
     }
   });
 
-  call.on(SocketEvents.ERROR, (err: any) => {
+  call.on('error', (err: any) => {
     console.error("gRPC Stream Error:", err.message);
     safeSend(() => {
       if (res) res.status(500).json({ error: err.message });
