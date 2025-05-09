@@ -126,10 +126,16 @@ export function simplifyFirestoreDataMessage(data: ListenResponse) {
   return message;
 }
 
-export function simplifyFirestoreDataChat(data: ListenResponse) {
+export function simplifyFirestoreDataChat(
+  data: ListenResponse,
+  user_id: string
+) {
   const document = data.document_change?.document;
   const fields = document?.fields;
 
+  const members = fields?.members?.array_value?.values || [];
+
+  const with_user = members.find((item) => item.string_value !== user_id);
   if (!document || !fields) return null;
 
   const chat = {
@@ -140,6 +146,7 @@ export function simplifyFirestoreDataChat(data: ListenResponse) {
     create_time: timestampToSeconds(document.create_time) || 0,
     last_send_at: timestampToSeconds(getMap(fields.latest_message).created_at),
     sender: getString(fields.latest_message.map_value?.fields.sender),
+    with_user: with_user?.string_value,
   };
 
   return chat;

@@ -186,7 +186,7 @@ export const chatUser = (
     }
 
     if (change) {
-      const messageData = simplifyFirestoreDataChat(response);
+      const messageData = simplifyFirestoreDataChat(response, userId);
       if (res) message.push(messageData);
       if (socket) socket.emit(SocketEvents.LIST_MESSAGE, messageData);
     }
