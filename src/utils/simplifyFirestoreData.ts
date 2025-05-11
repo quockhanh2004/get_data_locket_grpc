@@ -143,7 +143,9 @@ export function simplifyFirestoreDataChat(
     last_read_at: timestampToSeconds(fields.last_read_at?.timestamp_value) || 0,
     latest_message: getString(getMap(fields.latest_message).body),
     uid: getString(fields.uid),
-    update_time: timestampToSeconds(document.update_time),
+    update_time: timestampToSeconds(
+      fields?.latest_message?.map_value?.fields?.created_at?.timestamp_value
+    ),
     sender: getString(fields.latest_message.map_value?.fields.sender),
     with_user: with_user?.string_value,
   };

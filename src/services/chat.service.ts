@@ -44,7 +44,6 @@ export const chatWithUser = (
   if (socket) {
     (socket as any)._grpcStream = call;
     socket.on("disconnect", () => {
-      console.log("❌ Socket disconnected. Ending gRPC stream.");
       call.end();
     });
   }
