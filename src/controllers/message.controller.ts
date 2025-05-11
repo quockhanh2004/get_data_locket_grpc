@@ -16,7 +16,6 @@ function getMesssageWithUser(req: Request, res: Response) {
   const { with_user } = req.params;
   chatWithUser(
     {
-      isSocket: false,
       token,
       with_user,
       timestamp,
@@ -30,7 +29,6 @@ function getListMessage(req: Request, res: Response) {
   const { token, timestamp } = req.body;
   chatUser(
     {
-      isSocket: false,
       token,
       timestamp,
     },

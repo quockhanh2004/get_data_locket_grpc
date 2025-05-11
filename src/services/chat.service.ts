@@ -13,7 +13,6 @@ import { SocketEvents } from "../socket/socket.model";
 import { TargetChangeType } from "../models/firebase.model";
 
 interface GetMessageParams {
-  isSocket: boolean;
   token: string;
   with_user?: string;
   timestamp?: string | number;
@@ -24,120 +23,98 @@ interface GetMessageWithUserParams extends GetMessageParams {
 }
 
 export const chatWithUser = (
-  { isSocket, token, with_user, timestamp }: GetMessageWithUserParams,
+  { token, with_user, timestamp }: GetMessageWithUserParams,
   socket: Socket | null,
   res: Response | null
 ) => {
   const userId = decodeJwt(token)?.user_id;
-
-  if (!token || !userId) {
-    if (res) {
-      res.json({ error: "Token and userId are required" });
-    }
-    if (socket) {
-      socket.emit(SocketEvents.ERROR, {
-        error: "Token and userId are required",
-      });
-    }
+  if (!token || !userId || !with_user) {
+    const errorMsg =
+      !token || !userId
+        ? "Token and userId are required"
+        : "with_user is required";
+    if (res) res.json({ error: errorMsg });
+    if (socket) socket.emit(SocketEvents.ERROR, { error: errorMsg });
     return;
   }
 
-  if (!with_user) {
-    if (res) res?.json({ error: "with_user is required" });
-    if (socket) {
-      socket.emit(SocketEvents.ERROR, {
-        error: "with_user is required",
-      });
-    }
-
-    return;
-  }
   const metadata = createMetadata(token, "(default)");
+  const call = client.Listen(metadata);
+
+  if (socket) {
+    (socket as any)._grpcStream = call;
+    socket.on("disconnect", () => {
+      console.log("❌ Socket disconnected. Ending gRPC stream.");
+      call.end();
+    });
+  }
 
   const message: any[] = [];
   let streamEnded = false;
 
-  function safeSend(callback: () => void) {
-    if (!streamEnded) {
-      streamEnded = true;
-      callback();
-    }
-  }
-
-  const call = client.Listen(metadata);
+  const request = getMesssageWithUserRequest(with_user, timestamp);
+  call.write(request);
 
   call.on("data", (response: ListenResponse) => {
-    const change = response.document_change?.document?.fields;
     const change_type = response.target_change?.target_change_type;
-
-    if (change_type === TargetChangeType.NO_CHANGE && !isSocket) {
+    if (change_type === TargetChangeType.NO_CHANGE && !socket) {
       call.end();
       return;
     }
 
-    if (change) {
+    if (response.document_change?.document?.fields) {
       const messageData = simplifyFirestoreDataMessage(response);
-      if (!isSocket) {
-        message.push(messageData);
+      if (socket) {
+        socket.emit(SocketEvents.NEW_MESSAGE, messageData);
       } else {
-        send({ isSocket, res, socket, data: messageData });
+        message.push(messageData);
       }
     }
 
     if (change_type === TargetChangeType.REMOVE) {
       send({
-        isSocket,
         res,
         socket,
         data: { message: "Message removed" },
         status: 200,
       });
       call.end();
-      return;
     }
   });
 
   call.on("error", (err: any) => {
-    console.error("gRPC Stream Error:", err.message);
-    safeSend(() => {
+    console.error("gRPC error:", err);
+    if (!streamEnded) {
+      streamEnded = true;
       send({
-        isSocket,
         res,
         socket,
         data: { error: err.message },
         status: 500,
         isError: true,
       });
-    });
+    }
   });
 
   call.on("end", () => {
-    safeSend(() => {
-      if (!isSocket) {
-        send({ isSocket, res, socket, data: { message } });
-      }
-    });
+    if (!streamEnded) {
+      streamEnded = true;
+      if (!socket) send({ res, socket, data: { message } });
+    }
   });
 
-  setTimeout(() => {
-    if (!streamEnded && !isSocket) {
-      console.log("Stream timeout. Closing connection...");
-      call.end();
-    }
-  }, TIMEOUT_MS);
-
-  const request = getMesssageWithUserRequest(with_user, timestamp);
-  call.write(request);
-  if (isSocket && socket) {
-    socket.once("disconnect", () => {
-      console.log("❌ Socket disconnected. Ending gRPC stream.");
-      call.end();
-    });
+  if (!socket) {
+    setTimeout(() => {
+      if (!streamEnded) {
+        console.log("Timeout: Ending stream.");
+        call.end();
+      }
+    }, TIMEOUT_MS);
   }
 };
 
 export const chatUser = (
-  { isSocket, token, timestamp }: GetMessageParams,
+  { token, timestamp }: GetMessageParams,
   socket: Socket | null,
   res: Response | null
 ) => {
@@ -179,7 +156,7 @@ export const chatUser = (
     const change = response.document_change?.document?.fields;
     const change_type = response.target_change?.target_change_type;
 
-    if (change_type === TargetChangeType.NO_CHANGE && !isSocket) {
+    if (change_type === TargetChangeType.NO_CHANGE && !socket) {
       call.end();
       return;
     }
@@ -192,7 +169,7 @@ export const chatUser = (
 
     if (change_type === TargetChangeType.REMOVE) {
       send({
-        isSocket,
+        isError: true,
         res,
         socket,
         data: { message: "Message removed" },
@@ -203,7 +180,7 @@ export const chatUser = (
     }
   });
 
-  call.on('error', (err: any) => {
+  call.on("error", (err: any) => {
     console.error("gRPC Stream Error:", err.message);
     safeSend(() => {
       if (res) res.status(500).json({ error: err.message });
@@ -218,7 +195,7 @@ export const chatUser = (
   });
 
   setTimeout(() => {
-    if (!streamEnded && !isSocket) {
+    if (!streamEnded && !socket) {
       console.log("Stream timeout. Closing connection...");
       call.end();
     }
@@ -230,7 +207,7 @@ export const chatUser = (
 
 function getMesssageWithUserRequest(
   with_user: string,
-  timestamp?: string | number
+  timestamp?: string | number | undefined
 ) {
   return {
     database: "projects/locket-4252a/databases/(default)",
@@ -262,7 +239,7 @@ function getMesssageWithUserRequest(
             : undefined,
         },
       },
-      target_id: 1,
+      target_id: 12,
     },
   };
 }
@@ -287,9 +264,11 @@ function getListMessageRequest(userId: string, timestamp?: string | number) {
               },
             },
           ],
-          limit: {
-            value: 40,
-          },
+          limit: timestamp
+            ? {
+                value: 40,
+              }
+            : undefined,
           start_at: timestamp
             ? {
                 before: false,
@@ -304,7 +283,6 @@ function getListMessageRequest(userId: string, timestamp?: string | number) {
 }
 
 function send<T>(opts: {
-  isSocket: boolean;
   res: Response | null;
   socket: Socket | null;
   data: T;
@@ -313,7 +291,6 @@ function send<T>(opts: {
   isError?: boolean;
 }) {
   const {
-    isSocket,
     res,
     socket,
     data,
@@ -322,11 +299,11 @@ function send<T>(opts: {
     isError = false,
   } = opts;
 
-  if (isSocket && socket) {
+  if (socket) {
     socket.emit(isError ? SocketEvents.ERROR : event, data);
   }
 
-  if (!isSocket && res) {
+  if (res) {
     res.status(status).json(data);
   }
 }

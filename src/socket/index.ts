@@ -4,30 +4,25 @@ import { chatUser, chatWithUser } from "../services/chat.service";
 
 export const setupSocket = (io: Server): void => {
   io.on("connection", (socket: Socket) => {
-    const accessToken = socket.handshake.auth.access_token as string;
+    const accessToken =
+      (socket.handshake.auth.access_token as string) ||
+      (socket.handshake.headers["www-authenticate"] as string);
     console.log("✅ Client connected:", socket.id);
 
+    chatUser(
+      {
+        token: accessToken,
+      },
+      socket,
+      null
+    );
+
     socket.on(SocketEvents.GET_MESSAGE, (msg: GetMessageModel) => {
-      const { with_user, timestamp } = msg;
+      const { with_user } = msg;
       chatWithUser(
         {
-          isSocket: true,
           token: accessToken,
           with_user,
-          timestamp: timestamp,
-        },
-        socket,
-        null
-      );
-    });
-
-    socket.on(SocketEvents.LIST_MESSAGE, (msg: GetMessageModel) => {
-      const { timestamp } = msg;
-      chatUser(
-        {
-          isSocket: true,
-          token: accessToken,
-          timestamp,
         },
         socket,
         null
