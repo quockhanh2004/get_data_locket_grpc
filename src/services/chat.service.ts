@@ -48,7 +48,7 @@ export const chatWithUser = (
     });
   }
 
-  const message: any[] = [];
+  let message: any[] = [];
   let streamEnded = false;
 
   const request = getMesssageWithUserRequest(with_user, timestamp);
@@ -56,18 +56,19 @@ export const chatWithUser = (
 
   call.on("data", (response: ListenResponse) => {
     const change_type = response.target_change?.target_change_type;
-    if (change_type === TargetChangeType.NO_CHANGE && !socket) {
-      call.end();
-      return;
+    if (change_type === TargetChangeType.NO_CHANGE) {
+      if (!socket) {
+        call.end();
+        return;
+      } else {
+        socket.emit(SocketEvents.NEW_MESSAGE, message);
+        message = [];
+      }
     }
 
     if (response.document_change?.document?.fields) {
       const messageData = simplifyFirestoreDataMessage(response);
-      if (socket) {
-        socket.emit(SocketEvents.NEW_MESSAGE, messageData);
-      } else {
-        message.push(messageData);
-      }
+      message.push(messageData);
     }
 
     if (change_type === TargetChangeType.REMOVE) {
@@ -129,7 +130,7 @@ export const chatUser = (
     return;
   }
 
-  const message: any[] = [];
+  let message: any[] = [];
   let streamEnded = false;
 
   function safeSend(callback: () => void) {
@@ -155,15 +156,19 @@ export const chatUser = (
     const change = response.document_change?.document?.fields;
     const change_type = response.target_change?.target_change_type;
 
-    if (change_type === TargetChangeType.NO_CHANGE && !socket) {
-      call.end();
-      return;
+    if (change_type === TargetChangeType.NO_CHANGE) {
+      if (!socket) {
+        call.end();
+        return;
+      } else {
+        socket.emit(SocketEvents.LIST_MESSAGE, message);
+        message = [];
+      }
     }
 
     if (change) {
       const messageData = simplifyFirestoreDataChat(response, userId);
-      if (res) message.push(messageData);
-      if (socket) socket.emit(SocketEvents.LIST_MESSAGE, messageData);
+      message.push(messageData);
     }
 
     if (change_type === TargetChangeType.REMOVE) {
