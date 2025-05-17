@@ -7,7 +7,9 @@ import getFriendRouter from "./src/routers/get_friends";
 import getPostRouter from "./src/routers/get_posts";
 import spotifyRouter from "./src/routers/spotify";
 import getMessageRouter from "./src/routers/get_message";
+import userRoutert from "./src/routers/user";
 import { setupSocket } from "./src/socket";
+import { connectDB } from "./src/database/mongodb";
 
 dotenv.config();
 
@@ -17,7 +19,7 @@ const app = express();
 app.set("trust proxy", true);
 
 const server = http.createServer(app);
-
+connectDB();
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -48,6 +50,7 @@ app.use("/", getFriendRouter);
 app.use("/", getPostRouter);
 app.use("/", spotifyRouter);
 app.use("/", getMessageRouter);
+app.use("/", userRoutert);
 
 // Khởi động server
 server.listen(PORT, () => {

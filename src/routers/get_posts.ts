@@ -1,5 +1,5 @@
 import express from "express";
-import { getReactionPost, handleGetPosts } from "../controllers/postController";
+import { getReactionPost, handleGetPosts } from "../controllers/post.controller";
 
 const router = express.Router();
 router.post("/posts", handleGetPosts as any);
