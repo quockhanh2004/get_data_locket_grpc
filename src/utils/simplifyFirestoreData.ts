@@ -118,7 +118,7 @@ export function simplifyFirestoreDataMessage(data: ListenResponse) {
 
   let messageId = getString(fields.client_token);
   if (notFoundId) {
-    messageId = uuidv4();
+    messageId = getString(fields.reply_moment);
   }
     const message = {
       id: messageId,
