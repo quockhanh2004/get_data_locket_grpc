@@ -4,6 +4,8 @@ export interface IUserKey extends Document {
   key: string;
   email: string;
   isActivate: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const UserKeySchema: Schema = new Schema({

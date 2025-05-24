@@ -1,6 +1,7 @@
 import UserKey from "../models/mongodb/client";
 import emailBanned from "../models/mongodb/emailBanned";
 import { generateRandomString } from "../utils/genarateKey";
+import { sendMail } from "./mail.service";
 
 export const createRandomKey = async (email: string) => {
   try {
@@ -196,4 +197,42 @@ export const getAllEmail = async () => {
   } catch (err) {
     return { error: "Database error" };
   }
+};
+
+export const clientGenKey = async (email: string) => {
+  // Lấy thời điểm đầu ngày hôm nay
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  // Tìm các key đã tạo hôm nay
+  const todayKeys = await UserKey.find({
+    email,
+    createdAt: { $gte: startOfDay },
+  }).sort({ createdAt: -1 });
+
+  if (todayKeys.length >= 5) {
+    return {
+      error: "Bạn đã tạo quá nhiều khóa trong ngày hôm nay, vui lòng thử lại sau",
+    };
+  }
+
+  const result = await createRandomKey(email);
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  const send = await sendMail(
+    email,
+    "Locket Upload Key",
+    `
+    <h1>Chào mừng bạn đến với Locket Upload</h1>
+    <p>Khóa kích hoạt của bạn là: <strong>${result.key}</strong></p>
+    <p>Vui lòng giữ khóa này an toàn và không chia sẻ với người khác.</p>
+    <p>Mã này chỉ có thể sử dụng 1 lần!</p>
+    <p>Chúc bạn có những trải nghiệm tuyệt vời với Locket Upload!</p>`
+  );
+
+  return {
+    success: send.success,
+  };
 };

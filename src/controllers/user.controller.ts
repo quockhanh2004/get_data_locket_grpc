@@ -8,6 +8,7 @@ import {
   activateKey,
   banEmail,
   unbanEmail,
+  clientGenKey,
 } from "../services/client.service";
 
 async function checkValueKey(req: Request, res: Response) {
@@ -95,6 +96,15 @@ async function unbanded(req: Request, res: Response) {
   return res.json(await unbanEmail(email));
 }
 
+async function clientRequestGenKey(req: Request, res: Response) {
+  const email = req.body?.email || req.params?.email;
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+  const result = await clientGenKey(email);
+  return res.status(200).json(result);
+}
+
 export {
   checkValueKey,
   createKey,
@@ -103,5 +113,6 @@ export {
   getAllEmails,
   activateOneKey,
   banned,
-  unbanded
+  unbanded,
+  clientRequestGenKey,
 };

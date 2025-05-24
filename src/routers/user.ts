@@ -3,6 +3,7 @@ import { checkToken } from "../middleware/oauth";
 import {
   activateOneKey,
   banned,
+  clientRequestGenKey,
   createKey,
   deleteEmail,
   deleteKey,
@@ -26,4 +27,5 @@ router.delete(
 );
 router.patch("/users/:email", checkToken, asyncHandler(banned));
 router.put("/users/:email", checkToken, asyncHandler(unbanded));
+router.get("/users/client-gen-key/:email", asyncHandler(clientRequestGenKey));
 export default router;
