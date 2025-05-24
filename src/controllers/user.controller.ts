@@ -5,14 +5,16 @@ import {
   deleteManyEmail,
   deleteOneKey,
   getAllEmail,
-  getAllKeysByEmail,
+  activateKey,
+  banEmail,
+  unbanEmail,
 } from "../services/client.service";
 
 async function checkValueKey(req: Request, res: Response) {
   const key = req.body?.key;
   const email = req.body?.email;
-  if (!key || !email) {
-    return res.status(400).json({ error: "Key and email are required" });
+  if (!key) {
+    return res.status(400).json({ error: "Key are required" });
   }
   const result = await checkKey(key, email);
   if (result.error) {
@@ -40,7 +42,7 @@ async function deleteEmail(req: Request, res: Response) {
 
 async function deleteKey(req: Request, res: Response) {
   const key = req.params?.deleteKey;
-  
+
   if (!key) {
     return res.status(400).json({ error: "Key is required" });
   }
@@ -63,4 +65,43 @@ async function createKey(req: Request, res: Response) {
   return res.status(200).json(result);
 }
 
-export { checkValueKey, createKey, deleteKey, deleteEmail, getAllEmails };
+async function activateOneKey(req: Request, res: Response) {
+  const key = req.body?.key;
+  const email = req.body?.email;
+  if (!key || !email) {
+    return res.status(400).json({ error: "Key and email are required" });
+  }
+  const result = await activateKey(key, email);
+  if (result.error) {
+    return res.status(400).json({ error: result.error });
+  }
+  return res.status(200).json(result);
+}
+
+async function banned(req: Request, res: Response) {
+  const email = req.body?.email || req.params?.email;
+  const note = req.body?.note;
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+  return res.json(await banEmail(email, note));
+}
+
+async function unbanded(req: Request, res: Response) {
+  const email = req.body?.email || req.params?.email;
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+  return res.json(await unbanEmail(email));
+}
+
+export {
+  checkValueKey,
+  createKey,
+  deleteKey,
+  deleteEmail,
+  getAllEmails,
+  activateOneKey,
+  banned,
+  unbanded
+};

@@ -31,10 +31,34 @@ export const createRandomKey = async (email: string) => {
 
 export const checkKey = async (key: string, email: string) => {
   try {
-    const findKey = await UserKey.findOne({ key, email });
-    if (!findKey) return { error: "Key not found" };
+    const findKey = await UserKey.findOneAndUpdate(
+      { key, email },
+      { $set: { updatedAt: new Date() } },
+      { new: true }
+    );
+    if (!findKey) return { error: "Không tìm thấy khóa kích hoạt này" };
     return { key: findKey.key, email: findKey.email };
   } catch (err) {
+    return { error: "Database error" };
+  }
+};
+
+export const activateKey = async (key: string, email: string) => {
+  try {
+    const isBanned = await checkEmailBanned(email);
+    if (isBanned) {
+      return {
+        error: "Email đã bị cấm truy cập",
+        note: isBanned.note,
+      };
+    }
+    const findKey = await UserKey.findOne({ key, email });
+    if (!findKey) return { error: "Không tìm thấy khóa kích hoạt này" };
+    if (findKey.isActivate) return { error: "Khóa này đã được kích hoạt" };
+    findKey.isActivate = true;
+    await findKey.save();
+    return { key: findKey.key, email: findKey.email };
+  } catch (error) {
     return { error: "Database error" };
   }
 };
@@ -44,7 +68,7 @@ export const deleteOneKey = async (key: string) => {
     const deleteKey = await UserKey.findOneAndDelete({ key });
     if (!deleteKey) {
       return {
-        error: "Key not found",
+        error: "Không tìm thấy khóa kích hoạt này",
       };
     }
     return {
@@ -89,8 +113,12 @@ export const deleteManyEmail = async (email: string) => {
 
 export const banEmail = async (email: string, note?: string) => {
   try {
-    const emailBannedModel = new emailBanned({ email, note });
-    await emailBannedModel.save();
+    // Kiểm tra xem email đã bị banned chưa, nếu có thì trả về email, nếu chưa thì thêm vào bảng emailBanned chỉ với 1 request db
+    await emailBanned.findOneAndUpdate(
+      { email },
+      { email, note: note || "" },
+      { upsert: true, new: true }
+    );
     return {
       email,
     };
@@ -101,13 +129,12 @@ export const banEmail = async (email: string, note?: string) => {
 
 export const unbanEmail = async (email: string) => {
   try {
-    const findEmail = await emailBanned.findOne({ email });
+    const findEmail = await emailBanned.findOneAndDelete({ email });
     if (!findEmail) {
       return {
         error: "Email not found",
       };
     }
-    await findEmail.deleteOne();
     return {
       email: findEmail.email,
     };
@@ -152,7 +179,11 @@ export const getAllEmail = async () => {
         $group: {
           _id: "$email",
           keys: { $push: "$key" },
-          banned: { $first: { $cond: [{ $gt: [{ $size: "$banned" }, 0] }, true, false] } },
+          banned: {
+            $first: {
+              $cond: [{ $gt: [{ $size: "$banned" }, 0] }, true, false],
+            },
+          },
         },
       },
     ]);
