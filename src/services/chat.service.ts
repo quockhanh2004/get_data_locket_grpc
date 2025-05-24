@@ -119,7 +119,6 @@ export const chatUser = (
   res: Response | null
 ) => {
   const userId = decodeJwt(token)?.user_id;
-  const metadata = createMetadata(token, "(default)");
 
   if (!token || !userId) {
     if (res) return res.json({ error: "Token and userId are required" });
@@ -130,8 +129,11 @@ export const chatUser = (
     return;
   }
 
+  const metadata = createMetadata(token, "(default)");
+
   let message: any[] = [];
   let streamEnded = false;
+  let isFirst = true;
 
   function safeSend(callback: () => void) {
     if (!streamEnded) {
@@ -161,7 +163,11 @@ export const chatUser = (
         call.end();
         return;
       } else {
-        socket.emit(SocketEvents.LIST_MESSAGE, message);
+        if (isFirst) {
+          isFirst = false;
+        } else {
+          socket.emit(SocketEvents.LIST_MESSAGE, message);
+        }
         message = [];
       }
     }

@@ -1,5 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
 import { ListenResponse, Value } from "../models/firebase.model";
-import { Overlay, Post } from "../models/posts.model";
 import {
   getString,
   getInteger,
@@ -114,14 +114,20 @@ export function simplifyFirestoreDataMessage(data: ListenResponse) {
 
   if (!document || !fields) return null;
 
-  const message = {
-    id: getString(fields.client_token),
-    text: getString(fields.body),
-    sender: getString(fields.sender),
-    thumbnail_url: getString(fields.thumbnail_url),
-    reply_moment: getString(fields.reply_moment),
-    create_time: timestampToSeconds(document.create_time) || 0,
-  };
+  const notFoundId = fields.client_token?.null_value;
+
+  let messageId = getString(fields.client_token);
+  if (notFoundId) {
+    messageId = getString(fields.reply_moment);
+  }
+    const message = {
+      id: messageId,
+      text: getString(fields.body),
+      sender: getString(fields.sender),
+      thumbnail_url: getString(fields.thumbnail_url),
+      reply_moment: getString(fields.reply_moment),
+      create_time: timestampToSeconds(document.create_time) || 0,
+    };
 
   return message;
 }
