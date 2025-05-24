@@ -102,7 +102,9 @@ async function clientRequestGenKey(req: Request, res: Response) {
     return res.status(400).json({ error: "Email is required" });
   }
   const result = await clientGenKey(email);
-  return res.status(200).json(result);
+  if (result.error) {
+    return res.status(400).json({ error: result.error });
+  }
 }
 
 export {
