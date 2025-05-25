@@ -228,18 +228,25 @@ export const clientGenKey = async (email: string) => {
 
   const send = await sendMail(
     email,
-    "Locket Upload Key",
+    "Mã kích hoạt Locket Upload của bạn",
     `
-    <h1>Chào mừng bạn đến với Locket Upload</h1>
-    <p>Khóa kích hoạt của bạn là: <strong>${result.key}</strong></p>
-    <p>Vui lòng giữ khóa này an toàn và không chia sẻ với người khác.</p>
-    <p>Mã này chỉ có thể sử dụng 1 lần!</p>
-    <p>Chúc bạn có những trải nghiệm tuyệt vời với Locket Upload!</p>`
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Chào mừng bạn đến với Locket Upload!</h2>
+        <p>Đây là mã kích hoạt của bạn:</p>
+        <p style="font-size: 20px; font-weight: bold; color: #2d3748;">${result.key}</p>
+        <p>Hãy giữ mã này cẩn thận và không chia sẻ cho người khác.</p>
+        <p>Mã chỉ có hiệu lực một lần duy nhất.</p>
+        <hr />
+        <p>Nếu bạn cần hỗ trợ, hãy nhắn tin cho mình qua 
+          <a href="https://www.facebook.com/profile.php?id=61575901494417" target="_blank">Facebook</a>.
+        </p>
+        <p style="font-size: 12px; color: gray;">
+          Email này được gửi vì bạn đã yêu cầu mã kích hoạt trên Locket Upload.
+        </p>
+      </div>
+    `
   );
-
-  return {
-    success: send.success,
-  };
+  return send;
 };
 
 export async function cleanupInactiveKeys() {

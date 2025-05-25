@@ -107,6 +107,7 @@ export async function clientRequestGenKey(req: Request, res: Response) {
   if (result.error) {
     return res.status(400).json({ error: result.error });
   }
+  return res.status(200).json(result);
 }
 
 export async function getKeysByEmail(req: Request, res: Response) {
