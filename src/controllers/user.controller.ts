@@ -9,9 +9,10 @@ import {
   banEmail,
   unbanEmail,
   clientGenKey,
+  getAllKeysByEmail,
 } from "../services/client.service";
 
-async function checkValueKey(req: Request, res: Response) {
+export async function checkValueKey(req: Request, res: Response) {
   const key = req.body?.key;
   const email = req.body?.email;
   if (!key) {
@@ -24,12 +25,12 @@ async function checkValueKey(req: Request, res: Response) {
   return res.status(200).json(result);
 }
 
-async function getAllEmails(req: Request, res: Response) {
+export async function getAllEmails(req: Request, res: Response) {
   const result = await getAllEmail();
   return res.status(200).json(result);
 }
 
-async function deleteEmail(req: Request, res: Response) {
+export async function deleteEmail(req: Request, res: Response) {
   const email = req.params?.email;
   if (!email) {
     return res.status(400).json({ error: "Email is required" });
@@ -41,7 +42,7 @@ async function deleteEmail(req: Request, res: Response) {
   return res.status(200).json(result);
 }
 
-async function deleteKey(req: Request, res: Response) {
+export async function deleteKey(req: Request, res: Response) {
   const key = req.params?.deleteKey;
 
   if (!key) {
@@ -54,7 +55,7 @@ async function deleteKey(req: Request, res: Response) {
   return res.status(200).json(result);
 }
 
-async function createKey(req: Request, res: Response) {
+export async function createKey(req: Request, res: Response) {
   const email = req.body?.email;
   if (!email) {
     return res.status(400).json({ error: "Key and email are required" });
@@ -66,7 +67,7 @@ async function createKey(req: Request, res: Response) {
   return res.status(200).json(result);
 }
 
-async function activateOneKey(req: Request, res: Response) {
+export async function activateOneKey(req: Request, res: Response) {
   const key = req.body?.key;
   const email = req.body?.email;
   if (!key || !email) {
@@ -79,7 +80,7 @@ async function activateOneKey(req: Request, res: Response) {
   return res.status(200).json(result);
 }
 
-async function banned(req: Request, res: Response) {
+export async function banned(req: Request, res: Response) {
   const email = req.body?.email || req.params?.email;
   const note = req.body?.note;
   if (!email) {
@@ -88,7 +89,7 @@ async function banned(req: Request, res: Response) {
   return res.json(await banEmail(email, note));
 }
 
-async function unbanded(req: Request, res: Response) {
+export async function unbanded(req: Request, res: Response) {
   const email = req.body?.email || req.params?.email;
   if (!email) {
     return res.status(400).json({ error: "Email is required" });
@@ -96,7 +97,7 @@ async function unbanded(req: Request, res: Response) {
   return res.json(await unbanEmail(email));
 }
 
-async function clientRequestGenKey(req: Request, res: Response) {
+export async function clientRequestGenKey(req: Request, res: Response) {
   const email = req.body?.email || req.params?.email;
   if (!email) {
     return res.status(400).json({ error: "Email is required" });
@@ -107,14 +108,14 @@ async function clientRequestGenKey(req: Request, res: Response) {
   }
 }
 
-export {
-  checkValueKey,
-  createKey,
-  deleteKey,
-  deleteEmail,
-  getAllEmails,
-  activateOneKey,
-  banned,
-  unbanded,
-  clientRequestGenKey,
-};
+export async function getKeysByEmail(req: Request, res: Response) {
+  const email = req.params?.email;
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+  const keys = await getAllKeysByEmail(email);
+  if ('error' in keys) {
+    return res.status(400).json({ error: keys.error });
+  }
+  return res.status(200).json(keys);
+}

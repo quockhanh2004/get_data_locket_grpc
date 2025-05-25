@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { checkToken } from "../middleware/oauth";
+import { checkToken as checkAdmin } from "../middleware/oauth";
 import {
   activateOneKey,
   banned,
@@ -8,24 +8,26 @@ import {
   deleteEmail,
   deleteKey,
   getAllEmails,
+  getKeysByEmail,
   unbanded,
 } from "../controllers/user.controller";
 import { asyncHandler } from "../utils/asyncHandler";
 const router = Router();
-router.get("/users", checkToken, asyncHandler(getAllEmails));
-router.post("/users/generate-key", checkToken, asyncHandler(createKey));
+router.get("/users", checkAdmin, asyncHandler(getAllEmails));
+router.get("/users/:email", checkAdmin, asyncHandler(getKeysByEmail));
+router.post("/users/generate-key", checkAdmin, asyncHandler(createKey));
 router.post("/users/activate-key", asyncHandler(activateOneKey));
 router.delete(
   "/users/delete-key/:deleteKey",
-  checkToken,
+  checkAdmin,
   asyncHandler(deleteKey)
 );
 router.delete(
   "/users/delete-email/:email",
-  checkToken,
+  checkAdmin,
   asyncHandler(deleteEmail)
 );
-router.patch("/users/:email", checkToken, asyncHandler(banned));
-router.put("/users/:email", checkToken, asyncHandler(unbanded));
+router.patch("/users/:email", checkAdmin, asyncHandler(banned));
+router.put("/users/:email", checkAdmin, asyncHandler(unbanded));
 router.get("/users/client-gen-key/:email", asyncHandler(clientRequestGenKey));
 export default router;
