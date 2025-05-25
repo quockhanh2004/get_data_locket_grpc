@@ -10,6 +10,7 @@ import getMessageRouter from "./src/routers/get_message";
 import userRoutert from "./src/routers/user";
 import { setupSocket } from "./src/socket";
 import { connectDB } from "./src/database/mongodb";
+import cors from "cors";
 
 dotenv.config();
 
@@ -19,11 +20,16 @@ const app = express();
 app.set("trust proxy", true);
 
 const server = http.createServer(app);
+//cors *
+app.use(
+  cors({
+    origin: "*",
+  })
+);
 connectDB();
 const io = new Server(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"],
   },
 });
 
