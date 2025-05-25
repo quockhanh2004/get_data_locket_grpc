@@ -10,6 +10,7 @@ import {
   unbanEmail,
   clientGenKey,
   getAllKeysByEmail,
+  cleanupInactiveKeys,
 } from "../services/client.service";
 
 export async function checkValueKey(req: Request, res: Response) {
@@ -114,8 +115,16 @@ export async function getKeysByEmail(req: Request, res: Response) {
     return res.status(400).json({ error: "Email is required" });
   }
   const keys = await getAllKeysByEmail(email);
-  if ('error' in keys) {
+  if ("error" in keys) {
     return res.status(400).json({ error: keys.error });
   }
   return res.status(200).json(keys);
+}
+
+export async function clearNotActivatedKeys(req: Request, res: Response) {
+  const result = await cleanupInactiveKeys();
+  if ("error" in result) {
+    return res.status(400).json({ error: result.error });
+  }
+  return res.status(200).json(result);
 }

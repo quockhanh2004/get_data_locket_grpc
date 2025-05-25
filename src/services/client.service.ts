@@ -2,6 +2,10 @@ import UserKey from "../models/mongodb/client";
 import emailBanned from "../models/mongodb/emailBanned";
 import { generateRandomString } from "../utils/genarateKey";
 import { sendMail } from "./mail.service";
+import { config } from "dotenv";
+config();
+
+const ALLOW_EMAILS = process.env.EMAIL_SERVICE;
 
 export const createRandomKey = async (email: string) => {
   try {
@@ -212,7 +216,8 @@ export const clientGenKey = async (email: string) => {
 
   if (todayKeys.length >= 5) {
     return {
-      error: "Bạn đã tạo quá nhiều khóa trong ngày hôm nay, vui lòng thử lại sau",
+      error:
+        "Bạn đã tạo quá nhiều khóa trong ngày hôm nay, vui lòng thử lại sau",
     };
   }
 
@@ -236,3 +241,22 @@ export const clientGenKey = async (email: string) => {
     success: send.success,
   };
 };
+
+export async function cleanupInactiveKeys() {
+  try {
+    const filter = {
+      isActivate: false,
+      email: { $nin: ALLOW_EMAILS },
+    };
+
+    const result = await UserKey.deleteMany(filter);
+    return {
+      deletedCount: result.deletedCount,
+      message: "Đã dọn dẹp các khóa không hoạt động",
+    };
+  } catch (error) {
+    return {
+      error: error,
+    };
+  }
+}
